@@ -1,6 +1,6 @@
 # Void — 审核修复计划
 
-> 最近更新：2026-07-05 · **Clash UX 优化** 完成
+> 最近更新：2026-07-05 · **前端规范 + Lucide** 完成
 
 ## 已完成 ✅
 
@@ -25,6 +25,13 @@
 - [x] **`reclaim_port`** — 释放 Void 遗留 proxy
 - [x] **优先保留用户端口** — 遗留进程自动回收；默认不 silent fallback
 - [x] **可选「占用时自动换端口」** — `allow_fallback` 参数
+
+### 前端规范（2026-07-05）
+- [x] **箭头函数** — `src/` 全部函数统一箭头函数风格
+- [x] **JSDoc 注释** — 模块头 + 类型/函数中文文档
+- [x] **Lucide 图标** — `@lucide/vue` 全量替换 emoji / 内联 SVG
+- [x] **registry 图标类型** — `icon: LucideIcon` 组件注册
+- [x] **favicon** — `public/favicon.svg` 使用 CircleDot
 
 ### P0/P1（2026-07-05）
 - [x] **全局快捷键** Cmd/Ctrl+Shift+V（`shortcut.rs`）
@@ -57,6 +64,7 @@
 | Batch 6 | 07-05 | Round 6 审查待办 |
 | Phase 3 | 07-05 | sidecar + 托盘 |
 | **Clash UX** | 07-05 | prefs + 端口回收 + 拖拽 |
+| **Frontend** | 07-05 | 箭头函数 + JSDoc + Lucide |
 | **P0/P1** | 07-05 | 快捷键 + window-state + tests + CI |
 | Review 7 | 07-05 | [13-review-round7-phase3-closed.md](./13-review-round7-phase3-closed.md) |
 | Review 14 | 07-05 | [14-review-clash-ux-polish.md](./14-review-clash-ux-polish.md) |

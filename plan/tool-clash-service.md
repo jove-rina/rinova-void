@@ -1,12 +1,29 @@
 # Clash 订阅服务工具
 
-> 状态：**Phase 3 + UX 优化** · [FIX-PLAN.md](./review/FIX-PLAN.md) · [14-review-clash-ux-polish.md](./review/14-review-clash-ux-polish.md)
+> 状态：**Phase 3 + UX 优化 + 前端规范** · [FIX-PLAN.md](./review/FIX-PLAN.md) · [02-frontend-review.md](./review/02-frontend-review.md)
 
 ## 功能
 
 本地 HTTP 服务 → `http://127.0.0.1:{port}/clash.yaml`，供 Clash Verge 订阅。SDK 每 60 分钟自动刷新。
 
-**UI**：启动/停止 · 复制 · Rust 侧手动刷新 · 状态恢复 · 首页「运行中」badge · 成功/错误分色 · 运行时标签（内置/Node）· **URL/端口记忆** · **端口占用智能处理**
+**UI**：启动/停止 · 复制 · Rust 侧手动刷新 · 状态恢复 · 首页「运行中」badge · 成功/错误分色 · 运行时标签（内置/Node）· **URL/端口记忆** · **端口占用智能处理** · **Lucide 图标**
+
+## UI 图标（Lucide）
+
+| 位置 | 组件 | 文件 |
+|------|------|------|
+| 首页品牌 | `CircleDot` | `Home.vue` |
+| 工具卡片 | `Shield`（registry） | `registry.ts` / `Home.vue` |
+| 卡片箭头 | `ChevronRight` | `Home.vue` |
+| 标题栏关闭 | `X` | `WindowHeader.vue` |
+| 返回 | `ChevronLeft` | `clash-service/index.vue` |
+| 启动 / 停止 | `Play` / `Square` | `clash-service/index.vue` |
+| 加载中 | `Loader2`（旋转） | `clash-service/index.vue` |
+| 复制 / 已复制 | `Copy` / `Check` | `clash-service/index.vue` |
+| 手动刷新 | `RefreshCw`（刷新时旋转） | `clash-service/index.vue` |
+| favicon | `CircleDot` SVG | `public/favicon.svg` |
+
+新增工具时在 `registry.ts` 的 `icon` 字段填入 Lucide 组件（类型 `LucideIcon`）。
 
 ## IPC API
 
@@ -22,7 +39,7 @@
 
 返回 `StartServiceResult`：`{ base_url, port, requested_port, port_changed, port_reclaimed }`
 
-前端封装：`src/api/clash-service.ts` · composable：`src/composables/useClashService.ts`
+前端封装：`src/api/clash-service.ts`（箭头函数 + JSDoc）· composable：`src/composables/useClashService.ts`
 
 ## 端口占用策略
 
@@ -71,18 +88,22 @@ pnpm tauri:build    # release 含 sidecar，无需用户安装 Node
 pnpm tauri:dev      # 开发可回退系统 Node
 ```
 
+前端图标依赖：`@lucide/vue`（见 `package.json`）。
+
 ## 文件
 
 | 路径 | 职责 |
 |------|------|
-| `src/tools/clash-service/index.vue` | UI 壳 + 端口提示/释放/换端口选项 |
-| `src/composables/useClashService.ts` | 状态机 + prefs + 端口检测 |
+| `src/tools/clash-service/index.vue` | UI 壳 + Lucide 图标 + 端口提示/释放/换端口 |
+| `src/composables/useClashService.ts` | 状态机 + prefs + 端口检测（箭头函数） |
 | `src/utils/clash-prefs.ts` | URL/端口 localStorage |
-| `src/api/clash-service.ts` | typed invoke |
-| `src/components/WindowHeader.vue` | 无边框窗口拖拽区 |
+| `src/api/clash-service.ts` | typed invoke 封装 |
+| `src/tools/registry.ts` | 工具元数据 + `LucideIcon` 注册 |
+| `src/components/WindowHeader.vue` | 无边框窗口拖拽区 + 关闭 |
 | `src-tauri/src/clash.rs` | 进程/HTTP/SSRF/端口回收 |
 | `src-tauri/src/sidecar.rs` | sidecar 路径与 spawn |
 | `src-tauri/src/tray.rs` | 系统托盘 |
 | `src-tauri/src/window.rs` | macOS 圆角 |
 | `scripts/build-sidecar.mjs` | pkg 打包脚本 |
 | `src-tauri/permissions/clash-service.toml` | ACL |
+| `public/favicon.svg` | Lucide CircleDot 品牌 favicon |

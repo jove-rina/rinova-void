@@ -2,7 +2,7 @@
 
 基于代码现状、注释意图和产品定位，建议的开发里程碑。
 
-> 最后更新：2026-07-05 · Round 7
+> 最后更新：2026-07-05 · Phase 3 基本完成 + 前端 Lucide/规范
 
 ---
 
@@ -52,7 +52,7 @@
 
 ---
 
-## Phase 3：系统集成（v0.4.0）— 进行中（~75%）
+## Phase 3：系统集成（v0.4.0）— ✅ 基本完成
 
 | 任务 | 状态 |
 |------|------|
@@ -60,10 +60,12 @@
 | 系统托盘（关闭隐藏、菜单退出） | ✅ |
 | 全局快捷键 | ✅ Cmd/Ctrl+Shift+V |
 | 窗口位置记忆 | ✅ window-state |
+| 前端 Lucide 图标 | ✅ @lucide/vue |
+| 前端代码规范（箭头函数 + JSDoc） | ✅ |
 | 开机自启 | ⬜ |
 | 更多工具 | ⬜ |
 
-**交付标准**：关闭窗口不退出 ✅ · 快捷键唤起 ✅
+**交付标准**：关闭窗口不退出 ✅ · 快捷键唤起 ✅ · 统一图标体系 ✅
 
 ---
 
@@ -78,7 +80,7 @@
 | 主题切换 | ⬜ | 亮/暗主题 |
 | 无障碍 | ⬜ 部分 | 部分 ARIA |
 | 性能优化 | ⬜ | 启动速度、sidecar 体积 |
-| 文档 | ✅ 部分 | plan/review + README |
+| 文档 | ✅ | README + plan/tool + review 已同步 Lucide/规范 |
 | CSP 配置 | ✅ 基础 | connect-src localhost |
 
 **交付标准**：GitHub Releases 可下载安装
@@ -104,7 +106,8 @@
 | 决策 | 选择 | 理由 |
 |------|------|------|
 | 桌面框架 | Tauri 2 | 轻量、Rust 安全、跨平台 |
-| 前端框架 | Vue 3 | 简洁、Composition API |
+| 前端框架 | Vue 3 | 简洁、Composition API、箭头函数 |
+| 图标 | @lucide/vue | 统一矢量图标，registry 注册 |
 | 包管理 | pnpm | 快速、节省磁盘 |
 | 样式方案 | Less + CSS 变量 | 简单够用 |
 | 窗口风格 | 透明无边框 | 产品差异化 |
@@ -113,11 +116,14 @@
 | Clash 运行时 | pkg sidecar | 免用户 Node |
 | 托盘行为 | 关闭 = 隐藏到托盘 | Phase 3 已实施 |
 
+### 已确定（续）
+
+| 全局快捷键 | tauri-plugin-global-shortcut | ✅ Cmd/Ctrl+Shift+V |
+
 ### 待决定
 
 | 决策 | 选项 | 建议 |
 |------|------|------|
-| 全局快捷键 | tauri-plugin-global-shortcut | Cmd+Shift+V |
 | License | MIT vs Apache-2.0 | MIT |
 | 配置持久化 | Pinia + tauri-plugin-store | 工具增多后引入 |
 
@@ -128,5 +134,5 @@
 | Phase | 状态 | 预估 |
 |-------|------|------|
 | Phase 0–2 | ✅ | — |
-| Phase 3 剩余 | 进行中 | 1–2 天（快捷键 + 窗口记忆） |
+| Phase 3 | ✅ 基本完成 | — |
 | Phase 4 | 未开始 | 5–7 天 |

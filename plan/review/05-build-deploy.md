@@ -85,7 +85,18 @@ dist/assets/index-Bld1-jhg.css   2.43 kB
 dist/assets/index-Ce3DSxC3.js   76.74 kB
 ```
 
-前端包体积 76 KB（gzip 28 KB），非常轻量。
+前端包体积约 **112 KB**（gzip ~42 KB，含 `@lucide/vue` 树摇后按需打包），仍属轻量。
+
+### 前端主要依赖
+
+| 包 | 用途 |
+|----|------|
+| vue / vue-router | UI 与 registry 驱动路由 |
+| @lucide/vue | 图标组件（全 UI 统一） |
+| @tauri-apps/api | invoke + window |
+| less | 样式预处理 |
+
+代码规范见 [README.md](../../README.md#frontend-conventions) · [02-frontend-review.md](./02-frontend-review.md)
 
 ## 版本管理
 

@@ -59,3 +59,16 @@ allow_fallback? ──是──→ 扫描 port+1 … +32
 
 - [tool-clash-service.md](../tool-clash-service.md)
 - [FIX-PLAN.md](./FIX-PLAN.md)
+- [02-frontend-review.md](./02-frontend-review.md) — 后续前端规范（箭头函数 / JSDoc / Lucide）
+
+---
+
+## 附录：后续前端更新（同日）
+
+| 项 | 说明 |
+|----|------|
+| Lucide 图标 | `@lucide/vue` 替换 emoji / 内联 SVG；registry `icon: LucideIcon` |
+| 箭头函数 | `src/` 全部函数统一箭头函数 |
+| JSDoc | 模块与 API 中文注释补全 |
+
+本表为 Round 14 之后的增量，不改变上文 Clash UX 端口/拖拽结论。

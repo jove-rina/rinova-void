@@ -1,0 +1,12 @@
+[[permission]]
+identifier = "allow-clash-service"
+description = "Clash subscription service IPC commands"
+commands.allow = [
+  "start_service",
+  "stop_service",
+  "get_service_status",
+  "refresh_service",
+  "check_port",
+  "reclaim_port",
+  "init_window",
+]

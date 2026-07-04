@@ -1,0 +1,29 @@
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+use tauri::Runtime;
+
+/// Register global shortcut: Cmd+Shift+V (macOS) / Ctrl+Shift+V (Windows & Linux).
+pub fn setup<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    {
+        #[cfg(target_os = "macos")]
+        let mods = Modifiers::SUPER | Modifiers::SHIFT;
+        #[cfg(not(target_os = "macos"))]
+        let mods = Modifiers::CONTROL | Modifiers::SHIFT;
+
+        let shortcut = Shortcut::new(Some(mods), Code::KeyV);
+        let gs = app.global_shortcut();
+
+        gs.on_shortcut(shortcut, |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                crate::window::toggle_main_window(app);
+            }
+        })?;
+
+        gs.register(shortcut)?;
+        log::info!("Global shortcut registered: Cmd/Ctrl+Shift+V");
+    }
+
+    Ok(())
+}

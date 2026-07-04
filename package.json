@@ -1,0 +1,42 @@
+{
+  "name": "rinova-void",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "build:proxy": "esbuild src-tauri/scripts/proxy-server.mjs --bundle --platform=node --format=cjs --outfile=src-tauri/scripts/proxy-server.bundle.cjs",
+    "build:sidecar": "node scripts/build-sidecar.mjs",
+    "build:all": "pnpm build:proxy && pnpm build:sidecar && pnpm build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "test": "vitest run",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.23.0",
+    "@rinova/proxy-sdk": "^2.0.0",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-global-shortcut": "~2.3.2",
+    "@tauri-apps/plugin-window-state": "~2.4.1",
+    "vue": "^3.5.39",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "@types/node": "^24.13.2",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/tsconfig": "^0.9.1",
+    "@yao-pkg/pkg": "^6.21.0",
+    "esbuild": "^0.28.1",
+    "jsdom": "^29.1.1",
+    "less": "^4.6.7",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.9",
+    "vue-tsc": "^3.3.5"
+  }
+}

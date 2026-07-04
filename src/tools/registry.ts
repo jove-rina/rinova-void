@@ -1,0 +1,44 @@
+/**
+ * registry.ts
+ * Void 工具注册表 — 单一数据源驱动首页卡片与路由
+ *
+ * 新增工具步骤：
+ * 1. 在 `src/tools/<tool-id>/` 下实现 Vue 页面组件
+ * 2. 在本数组追加一条 ToolDefinition（含 Lucide 图标组件）
+ * 3. 无需修改 router/index.ts（路由由本表自动生成）
+ */
+import type { Component } from 'vue'
+import { Shield, type LucideIcon } from '@lucide/vue'
+
+/**
+ * 单个 Void 工具的元数据与懒加载入口。
+ */
+export interface ToolDefinition {
+  /** 唯一标识，用于路由 name、首页运行状态 Set 的 key */
+  id: string
+  /** 首页卡片标题 */
+  name: string
+  /** 首页卡片副标题/简介 */
+  description: string
+  /** 首页卡片 Lucide 图标组件 */
+  icon: LucideIcon
+  /** Vue Router path，建议 `/tool/<id>` 格式 */
+  route: string
+  /** 懒加载组件工厂，供 Vue Router 动态 import */
+  component: () => Promise<{ default: Component }>
+}
+
+/**
+ * 当前已注册的全部工具列表。
+ * 顺序即首页展示顺序。
+ */
+export const tools: ToolDefinition[] = [
+  {
+    id: 'clash-service',
+    name: 'Clash 订阅服务',
+    description: '启动本地 Clash 订阅 HTTP 服务',
+    icon: Shield,
+    route: '/tool/clash-service',
+    component: () => import('@/tools/clash-service/index.vue'),
+  },
+]

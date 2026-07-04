@@ -1,0 +1,30 @@
+[package]
+name = "rinova-void"
+version = "0.1.0"
+description = "Void — Your pocket from the void. A desktop toolbox."
+authors = ["Rina <rina@rinova.dev>"]
+license = "MIT"
+repository = "https://github.com/jove-rina/rinova-void"
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+libc = "0.2"
+tauri = { version = "2.11.3", features = ["macos-private-api", "tray-icon"] }
+tauri-plugin-log = "2"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-window-state = "2"

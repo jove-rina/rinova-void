@@ -12,6 +12,20 @@ Void 的所有重要变更均记录于此。
 
 ---
 
+## [0.3.1] - 2026-07-07
+
+### 新增
+
+- **macOS 取色器** — 基于屏幕快照取色，需屏幕录制权限；可选「截屏时隐藏应用」，避免快照中出现 Void 界面
+- **GitHub Release 自动化** — 推送 tag `v*`（如 `v0.3.1`）自动构建 macOS（Apple Silicon + Intel）、Linux、Windows 并发布 GitHub Release
+
+### 变更
+
+- 取色器后端重构为平台模块（`color_picker/macos/`、`platform/`）
+- CI — 构建矩阵增加 Windows；启用 Rust 构建缓存；Release 构建迁移至 `.github/workflows/release.yml`
+
+---
+
 ## [0.3.0] - 2026-07-06
 
 ### 新增
@@ -69,7 +83,8 @@ Void 的所有重要变更均记录于此。
 - 无边框主窗口与自定义拖拽标题栏
 - CI — Vitest、Rust 单元测试、多平台构建检查
 
-[未发布]: https://github.com/jove-rina/rinova-void/compare/0.3.0...HEAD
-[0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...0.3.0
+[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/jove-rina/rinova-void/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...v0.3.0
 [0.2.0]: https://github.com/jove-rina/rinova-void/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/jove-rina/rinova-void/releases/tag/0.1.0

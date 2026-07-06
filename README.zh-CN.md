@@ -67,6 +67,10 @@
 
 ## 安装
 
+### 从 GitHub Releases 安装
+
+Windows、Linux、macOS（Apple Silicon + Intel）预编译包见 [Releases](https://github.com/jove-rina/rinova-void/releases) 页面，按平台下载对应安装包（`.msi` / `.exe`、`.deb` / `.AppImage`、`.dmg`）。
+
 ### 从源码（开发 / 本地构建）
 
 **环境要求**
@@ -98,6 +102,8 @@ pnpm tauri:build     # 输出 .msi / .dmg 等，位于 src-tauri/target/release/
 > **Windows 开发：** Vite 忽略 `src-tauri/**`，避免 Rust 重编译时 `app_lib.dll` 出现 `EBUSY`。
 
 GitHub Actions 签名发布需配置 Apple 证书 Secrets — 详见 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md#发布与-ci)。本地未签名构建无需配置。
+
+发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.3.1 && git push origin v0.3.1`。
 
 ---
 

@@ -67,6 +67,10 @@ Pick colors from a screen snapshot, collect multiple swatches in one session, an
 
 ## Installation
 
+### From GitHub Releases
+
+Pre-built installers for Windows, Linux, and macOS (Apple Silicon + Intel) are published on the [Releases](https://github.com/jove-rina/rinova-void/releases) page. Download the bundle for your platform (`.msi` / `.exe`, `.deb` / `.AppImage`, `.dmg`).
+
 ### From source (development / local build)
 
 **Prerequisites**
@@ -97,7 +101,9 @@ pnpm tauri:build     # outputs .msi / .dmg / etc. under src-tauri/target/release
 
 > **Windows dev:** Vite ignores `src-tauri/**` to avoid `EBUSY` on `app_lib.dll` during Rust rebuilds.
 
-Signed release builds via GitHub Actions require Apple signing secrets — see [ARCHITECTURE.md](ARCHITECTURE.md#release--ci) for details. Local unsigned builds work without them.
+Signed release builds via GitHub Actions require Apple signing secrets — see [ARCHITECTURE.md](ARCHITECTURE.md#release--ci). Local unsigned builds work without them.
+
+To cut a new release: bump version, update the changelog, merge to `main`, then `git tag v0.3.1 && git push origin v0.3.1`.
 
 ---
 

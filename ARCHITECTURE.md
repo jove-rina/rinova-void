@@ -186,8 +186,14 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 
 ### GitHub Actions
 
-- **CI** (`.github/workflows/ci.yml`) — Vitest, `cargo test`, frontend typecheck/build, `cargo check` on Ubuntu and macOS
-- **Release** — `workflow_dispatch` with optional Apple code signing
+- **CI** (`.github/workflows/ci.yml`) — Vitest, `cargo test`, frontend typecheck/build, `cargo check` on Ubuntu, macOS, and Windows; Rust build cache enabled
+- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.3.1`); builds macOS Apple Silicon + Intel, Linux, and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release
+
+**Release checklist**
+
+1. Bump version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
+2. Update `CHANGELOG.md` / `CHANGELOG.zh-CN.md`
+3. Merge to `main`, then tag and push: `git tag v0.3.1 && git push origin v0.3.1`
 
 | Secret | Purpose |
 |--------|---------|
@@ -195,6 +201,8 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 | `APPLE_CERTIFICATE_PASSWORD` | Certificate password |
 | `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: …` |
 | `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | Notarization (optional) |
+
+Repository **Settings → Actions → General → Workflow permissions** must allow **Read and write** for release uploads.
 
 ### Windows dev note
 

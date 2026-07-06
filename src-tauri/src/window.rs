@@ -1,14 +1,124 @@
-use tauri::{Emitter, Manager, Runtime};
+use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, WebviewWindow};
 use tauri::window::Color;
 
 pub const WINDOW_BG: Color = Color(22, 23, 29, 255);
 
+/// 与 `tauri.conf.json` 中 main 窗口初始逻辑尺寸一致。
+pub const DEFAULT_WINDOW_WIDTH: u32 = 400;
+pub const DEFAULT_WINDOW_HEIGHT: u32 = 500;
+
+/// 旧版截屏 hide 可能把窗口缩到 1×1 并持久化；低于此阈值视为损坏。
+const MIN_VALID_WIDTH: u32 = 120;
+const MIN_VALID_HEIGHT: u32 = 120;
+/// 旧版曾移到 -30000，会被 window-state 插件记住。
+const OFFSCREEN_THRESHOLD: i32 = 8_000;
+
+#[cfg(target_os = "macos")]
+fn unhide_app_if_needed<R: Runtime>(app: &tauri::AppHandle<R>) {
+    if let Err(e) = crate::color_picker::unhide_app_for_window_show(app) {
+        log::warn!("解除 App 隐藏: {}", e);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn unhide_app_if_needed<R: Runtime>(_app: &tauri::AppHandle<R>) {}
+
+fn is_geometry_corrupted<R: Runtime>(window: &WebviewWindow<R>) -> Result<bool, String> {
+    let pos = window.outer_position().map_err(|e| e.to_string())?;
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    Ok(pos.x.abs() > OFFSCREEN_THRESHOLD
+        || pos.y.abs() > OFFSCREEN_THRESHOLD
+        || size.width < MIN_VALID_WIDTH
+        || size.height < MIN_VALID_HEIGHT)
+}
+
+/// 将主窗口设为默认逻辑尺寸并居中于主屏 work area（与 tauri.conf 一致）。
+pub fn apply_default_window_geometry<R: Runtime>(
+    main: &WebviewWindow<R>,
+    app: &tauri::AppHandle<R>,
+) -> Result<(), String> {
+    let monitors = app.available_monitors().map_err(|e| e.to_string())?;
+    let monitor = monitors
+        .first()
+        .ok_or_else(|| "未检测到可用显示器".to_string())?;
+    let work = monitor.work_area();
+    let scale = monitor.scale_factor();
+    let phys_w = ((DEFAULT_WINDOW_WIDTH as f64) * scale).round() as u32;
+    let phys_h = ((DEFAULT_WINDOW_HEIGHT as f64) * scale).round() as u32;
+    let x = work.position.x + ((work.size.width.saturating_sub(phys_w)) / 2) as i32;
+    let y = work.position.y + ((work.size.height.saturating_sub(phys_h)) / 2) as i32;
+
+    main.set_fullscreen(false)
+        .map_err(|e| format!("退出全屏失败: {e}"))?;
+    // 部分平台在 resizable=false 时 set_size 不生效，先临时允许调整。
+    let _ = main.set_resizable(true);
+    main.set_size(LogicalSize::new(
+        DEFAULT_WINDOW_WIDTH as f64,
+        DEFAULT_WINDOW_HEIGHT as f64,
+    ))
+    .map_err(|e| format!("设置窗口尺寸失败: {e}"))?;
+    main.set_resizable(false)
+        .map_err(|e| format!("设置窗口不可调整大小失败: {e}"))?;
+    main.set_position(PhysicalPosition::new(x, y))
+        .map_err(|e| format!("设置窗口位置失败: {e}"))?;
+    Ok(())
+}
+
+fn repair_window_geometry_if_needed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    unhide_app_if_needed(app);
+
+    if crate::color_picker::is_picker_active(app) {
+        #[cfg(target_os = "macos")]
+        crate::color_picker::present_window(app)?;
+        #[cfg(not(target_os = "macos"))]
+        if let Some(main) = app.get_webview_window("main") {
+            main.show().map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+
+    let Some(main) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+
+    if !is_geometry_corrupted(&main)? {
+        return Ok(());
+    }
+
+    apply_default_window_geometry(&main, app)
+}
+
+/// 主窗口是否处于可见状态（查询失败时视为不可见）。
+pub fn is_main_window_visible<R: Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    app.get_webview_window("main")
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false)
+}
+
+/// 将主窗口恢复到应用初始尺寸并居中于主屏 work area，然后显示。
+pub fn reset_main_window<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| "主窗口未找到".to_string())?;
+
+    unhide_app_if_needed(app);
+    apply_default_window_geometry(&main, app)?;
+    let _ = main.unminimize();
+    main.show().map_err(|e| format!("显示窗口失败: {e}"))?;
+    let _ = main.set_focus();
+
+    crate::tray::sync_toggle_menu_label(app);
+    Ok(())
+}
+
 pub fn show_main_window<R: Runtime>(app: &tauri::AppHandle<R>) {
+    let _ = repair_window_geometry_if_needed(app);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
+    crate::tray::sync_toggle_menu_label(app);
 }
 
 pub fn toggle_main_window<R: Runtime>(app: &tauri::AppHandle<R>) {
@@ -18,12 +128,20 @@ pub fn toggle_main_window<R: Runtime>(app: &tauri::AppHandle<R>) {
                 let _ = window.hide();
             }
             _ => {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
+                show_main_window(app);
+                return;
             }
         }
     }
+    crate::tray::sync_toggle_menu_label(app);
+}
+
+/// 启动时修复被 window-state 恢复的损坏几何，并显示主窗口。
+pub fn repair_main_window_on_launch<R: Runtime>(app: &tauri::AppHandle<R>) {
+    if let Err(e) = repair_window_geometry_if_needed(app) {
+        log::warn!("启动窗口几何修复: {}", e);
+    }
+    show_main_window(app);
 }
 
 /// 显示主窗口并通知前端进入取色流程
@@ -58,7 +176,8 @@ pub fn open_about<R: Runtime>(app: &tauri::AppHandle<R>) {
 
 /// Apply platform window chrome: solid background matching the frontend theme.
 pub fn init_main_window<R: Runtime, M: Manager<R>>(app: &M) -> Result<(), String> {
-    let window = app
+    let handle = app.app_handle();
+    let window = handle
         .get_webview_window("main")
         .ok_or_else(|| "主窗口未找到".to_string())?;
 

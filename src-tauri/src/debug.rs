@@ -1,3 +1,4 @@
+#[cfg(any(debug_assertions, feature = "devtools"))]
 use tauri::Manager;
 
 /// 读取环境变量开关（`1` / `true` 开启，`0` / `false` / 未设置 关闭）。
@@ -36,6 +37,23 @@ pub fn setup_logging<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Res
     )
 }
 
+/// 打开主窗口 DevTools（仅 debug 构建或启用 `tauri/devtools` feature 时可用）。
+#[cfg(any(debug_assertions, feature = "devtools"))]
+fn open_webview_devtools<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(w) = app.get_webview_window("main") {
+        w.open_devtools();
+        log::info!("DevTools opened (VOID_DEVTOOLS=1)");
+    }
+}
+
+#[cfg(not(any(debug_assertions, feature = "devtools")))]
+fn open_webview_devtools<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let _ = app;
+    log::warn!(
+        "DevTools shortcut ignored in release build; rebuild with debug profile or enable tauri `devtools` feature"
+    );
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn setup_devtools_shortcut<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
@@ -54,10 +72,7 @@ pub fn setup_devtools_shortcut<R: tauri::Runtime>(
         if event.state != ShortcutState::Pressed {
             return;
         }
-        if let Some(w) = app.get_webview_window("main") {
-            w.open_devtools();
-            log::info!("DevTools opened (VOID_DEVTOOLS=1)");
-        }
+        open_webview_devtools(app);
     })?;
 
     gs.register(shortcut)?;

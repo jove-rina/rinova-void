@@ -16,12 +16,17 @@ import ColorRecordsSection from './color-records-section.vue'
 import {
   clientToCanvasPixel,
   decodeBase64PngToImageBitmap,
+  displayPercentToScale,
   fitCanvasTransform,
+  formatDisplayZoomPercent,
+  parseDisplayZoomPercent,
   sampleCanvasPixel,
   zoomAtPoint,
+  zoomScaleLimits,
   type CanvasTransform,
 } from '@/utils/picker-canvas'
 import { toHex, toHsl, toRgb } from '@/utils/color-format'
+import { isMacOs } from '@/utils/platform'
 import type { ColorRecord, ColorRecordExportFormat } from '@/utils/color-records'
 
 const props = defineProps<{
@@ -64,6 +69,8 @@ const previewCenter = ref<[number, number, number]>([0, 0, 0])
 const previewPixels = ref<[number, number, number][]>([])
 const ready = ref(false)
 const transform = ref<CanvasTransform>({ panX: 0, panY: 0, scale: 1 })
+/** 适应窗口时的 scale，UI 100% 对应该值 */
+const baseScale = ref(1)
 const isPanning = ref(false)
 
 let sourceCtx: CanvasRenderingContext2D | null = null
@@ -79,12 +86,30 @@ let loadGeneration = 0
 let resizeObserver: ResizeObserver | null = null
 
 const CLICK_THRESHOLD = 6
+/** 按钮/键盘每次缩放倍率 */
+const ZOOM_STEP_FACTOR = 1.08
+/** 滚轮每步缩放倍率（越小越慢） */
+const WHEEL_ZOOM_BASE = 1.035
 
 const magnifyEnabled = computed(() => activeRadius.value > 0)
 const magnifyGrid = computed(() => gridMeta(activeRadius.value))
 const gridSize = computed(() => magnifyGrid.value.gridSize)
 const centerIndex = computed(() => magnifyGrid.value.centerIndex)
-const zoomPercent = computed(() => `${Math.round(transform.value.scale * 100)}%`)
+
+const zoomInputValue = ref('100%')
+const zoomInputFocused = ref(false)
+
+let sampleFrame = 0
+let pendingSampleX = 0
+let pendingSampleY = 0
+let cachedViewW = 0
+let cachedViewH = 0
+let cachedDpr = 1
+let lastRenderedScale = -1
+
+const canvasPanStyle = computed(() => ({
+  transform: `translate(${transform.value.panX}px, ${transform.value.panY}px)`,
+}))
 
 const viewportCursor = computed(() => (isPanning.value ? 'grabbing' : 'crosshair'))
 
@@ -108,42 +133,64 @@ const cellStyle = (px: [number, number, number]): { background: string } => ({
 
 const getViewportRect = (): DOMRect | null => viewportRef.value?.getBoundingClientRect() ?? null
 
-const renderView = (): void => {
-  const viewport = viewportRef.value
+const syncZoomInput = (): void => {
+  if (!zoomInputFocused.value) {
+    zoomInputValue.value = formatDisplayZoomPercent(transform.value.scale, baseScale.value)
+  }
+}
+
+const redrawCanvas = (): void => {
   const source = sourceCanvasRef.value
   const view = viewCanvasRef.value
-  if (!viewport || !source || !view || !source.width || !source.height) return
+  if (!source || !view || !source.width || !source.height) return
 
-  const vw = viewport.clientWidth
-  const vh = viewport.clientHeight
-  if (vw <= 0 || vh <= 0) return
-
+  const { scale } = transform.value
   const dpr = window.devicePixelRatio || 1
-  view.width = Math.round(vw * dpr)
-  view.height = Math.round(vh * dpr)
-  view.style.width = `${vw}px`
-  view.style.height = `${vh}px`
+  const cssW = Math.max(1, Math.round(source.width * scale))
+  const cssH = Math.max(1, Math.round(source.height * scale))
+  const pixelW = Math.round(cssW * dpr)
+  const pixelH = Math.round(cssH * dpr)
 
-  if (!viewCtx) {
-    viewCtx = view.getContext('2d')
+  if (
+    pixelW !== cachedViewW
+    || pixelH !== cachedViewH
+    || dpr !== cachedDpr
+    || scale !== lastRenderedScale
+  ) {
+    view.width = pixelW
+    view.height = pixelH
+    view.style.width = `${cssW}px`
+    view.style.height = `${cssH}px`
+    cachedViewW = pixelW
+    cachedViewH = pixelH
+    cachedDpr = dpr
+    lastRenderedScale = scale
+
+    if (!viewCtx) {
+      viewCtx = view.getContext('2d')
+    }
+    if (!viewCtx) return
+
+    viewCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    viewCtx.clearRect(0, 0, cssW, cssH)
+    viewCtx.imageSmoothingEnabled = scale <= baseScale.value
+    viewCtx.drawImage(source, 0, 0, cssW, cssH)
   }
-  if (!viewCtx) return
+}
 
-  const { panX, panY, scale } = transform.value
-  viewCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  viewCtx.imageSmoothingEnabled = scale < 1
-  viewCtx.clearRect(0, 0, vw, vh)
-  viewCtx.drawImage(
-    source,
-    -panX / scale,
-    -panY / scale,
-    vw / scale,
-    vh / scale,
-    0,
-    0,
-    vw,
-    vh,
-  )
+const renderView = (): void => {
+  redrawCanvas()
+}
+
+/** 合并指针移动时的取色采样，避免 getImageData 拖慢平移/悬停 */
+const scheduleSample = (clientX: number, clientY: number): void => {
+  pendingSampleX = clientX
+  pendingSampleY = clientY
+  if (sampleFrame) return
+  sampleFrame = requestAnimationFrame(() => {
+    sampleFrame = 0
+    sampleAtClient(pendingSampleX, pendingSampleY)
+  })
 }
 
 const fitToView = (): void => {
@@ -156,8 +203,13 @@ const fitToView = (): void => {
     source.width,
     source.height,
   )
+  baseScale.value = transform.value.scale
+  lastRenderedScale = -1
+  syncZoomInput()
   renderView()
 }
+
+const zoomLimits = (): { min: number; max: number } => zoomScaleLimits(baseScale.value)
 
 const sampleAtClient = (clientX: number, clientY: number): boolean => {
   const source = sourceCanvasRef.value
@@ -192,8 +244,49 @@ const zoomBy = (factor: number): void => {
   if (!rect) return
   const cx = rect.left + rect.width / 2
   const cy = rect.top + rect.height / 2
-  transform.value = zoomAtPoint(transform.value, cx, cy, rect, factor)
+  const { min, max } = zoomLimits()
+  transform.value = zoomAtPoint(transform.value, cx, cy, rect, factor, min, max)
+  syncZoomInput()
   renderView()
+}
+
+const applyZoomFromInput = (): void => {
+  const percent = parseDisplayZoomPercent(zoomInputValue.value)
+  if (percent === null) {
+    syncZoomInput()
+    return
+  }
+  const rect = getViewportRect()
+  if (!rect) return
+  const { min, max } = zoomLimits()
+  const nextScale = Math.min(max, Math.max(min, displayPercentToScale(percent, baseScale.value)))
+  const factor = nextScale / transform.value.scale
+  if (Math.abs(factor - 1) < 0.0001) {
+    syncZoomInput()
+    return
+  }
+  const cx = rect.left + rect.width / 2
+  const cy = rect.top + rect.height / 2
+  transform.value = zoomAtPoint(transform.value, cx, cy, rect, factor, min, max)
+  syncZoomInput()
+  renderView()
+  scheduleSample(cx, cy)
+}
+
+const onZoomInputFocus = (): void => {
+  zoomInputFocused.value = true
+}
+
+const onZoomInputBlur = (): void => {
+  zoomInputFocused.value = false
+  applyZoomFromInput()
+}
+
+const onZoomInputKeydown = (event: KeyboardEvent): void => {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    ;(event.target as HTMLInputElement).blur()
+  }
 }
 
 const startPan = (clientX: number, clientY: number): void => {
@@ -211,7 +304,6 @@ const movePan = (clientX: number, clientY: number): void => {
     panX: panOriginX + (clientX - panStartX),
     panY: panOriginY + (clientY - panStartY),
   }
-  renderView()
 }
 
 const endPan = (): void => {
@@ -231,7 +323,7 @@ const onPointerDown = (event: PointerEvent): void => {
     leftPointerDown = true
     pointerDownX = event.clientX
     pointerDownY = event.clientY
-    sampleAtClient(event.clientX, event.clientY)
+    scheduleSample(event.clientX, event.clientY)
   }
 }
 
@@ -240,7 +332,7 @@ const onPointerMove = (event: PointerEvent): void => {
     movePan(event.clientX, event.clientY)
     return
   }
-  sampleAtClient(event.clientX, event.clientY)
+  scheduleSample(event.clientX, event.clientY)
 }
 
 const onPointerUp = (event: PointerEvent): void => {
@@ -266,14 +358,22 @@ const onWheel = (event: WheelEvent): void => {
   event.preventDefault()
   const rect = getViewportRect()
   if (!rect) return
-  const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12
+  const steps = Math.min(3, Math.max(1, Math.round(Math.abs(event.deltaY) / 50)))
+  const factor =
+    event.deltaY < 0
+      ? WHEEL_ZOOM_BASE ** steps
+      : 1 / WHEEL_ZOOM_BASE ** steps
+  const { min, max } = zoomLimits()
   transform.value = zoomAtPoint(
     transform.value,
     event.clientX,
     event.clientY,
     rect,
     factor,
+    min,
+    max,
   )
+  syncZoomInput()
   renderView()
 }
 
@@ -291,10 +391,10 @@ const onKeyDown = (event: KeyboardEvent): void => {
     activeRadius.value = MAGNIFY_OPTIONS[(idx + 1) % MAGNIFY_OPTIONS.length].radius
   } else if (event.key === '+' || event.key === '=') {
     event.preventDefault()
-    zoomBy(1.2)
+    zoomBy(ZOOM_STEP_FACTOR)
   } else if (event.key === '-') {
     event.preventDefault()
-    zoomBy(1 / 1.2)
+    zoomBy(1 / ZOOM_STEP_FACTOR)
   } else if (event.key === '0') {
     event.preventDefault()
     fitToView()
@@ -305,9 +405,16 @@ watch(activeRadius, (radius) => {
   emit('update:radius', radius)
   const rect = getViewportRect()
   if (rect) {
-    sampleAtClient(rect.left + rect.width / 2, rect.top + rect.height / 2)
+    scheduleSample(rect.left + rect.width / 2, rect.top + rect.height / 2)
   }
 })
+
+watch(
+  () => transform.value.scale,
+  () => {
+    syncZoomInput()
+  },
+)
 
 const loadSnapshot = async (session: StartPickerResult): Promise<void> => {
   await nextTick()
@@ -340,9 +447,10 @@ const loadSnapshot = async (session: StartPickerResult): Promise<void> => {
     sourceCtx.drawImage(bitmap, 0, 0)
     bitmap.close()
     ready.value = true
+    lastRenderedScale = -1
     fitToView()
     const rect = viewport.getBoundingClientRect()
-    sampleAtClient(rect.left + rect.width / 2, rect.top + rect.height / 2)
+    scheduleSample(rect.left + rect.width / 2, rect.top + rect.height / 2)
   } catch {
     if (generation !== loadGeneration) return
     ready.value = false
@@ -384,7 +492,10 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
-  await getCurrentWindow().setFullscreen(true)
+  // macOS 原生全屏会跳到主屏；Rust 已将窗口铺满目标显示器
+  if (!isMacOs()) {
+    await getCurrentWindow().setFullscreen(true)
+  }
 
   const viewport = viewportRef.value
   if (viewport) {
@@ -399,6 +510,10 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
+  if (sampleFrame) {
+    cancelAnimationFrame(sampleFrame)
+    sampleFrame = 0
+  }
   resizeObserver?.disconnect()
   resizeObserver = null
 })
@@ -423,6 +538,7 @@ onUnmounted(() => {
         ref="viewCanvasRef"
         class="picker-session__canvas"
         :class="{ 'picker-session__canvas--ready': ready }"
+        :style="canvasPanStyle"
       />
       <div v-if="!ready || refreshing" class="picker-session__loading">
         <Loader2 :size="32" :stroke-width="2" class="picker-session__loading-spin" />
@@ -503,16 +619,27 @@ onUnmounted(() => {
             type="button"
             class="picker-session__icon-btn"
             title="缩小 (-)"
-            @click="zoomBy(1 / 1.2)"
+            @click="zoomBy(1 / ZOOM_STEP_FACTOR)"
           >
             <Minus :size="14" :stroke-width="2" />
           </button>
-          <span class="picker-session__zoom-value">{{ zoomPercent }}</span>
+          <div class="picker-session__zoom-input-wrap">
+            <input
+              v-model="zoomInputValue"
+              type="text"
+              class="picker-session__zoom-input"
+              inputmode="decimal"
+              aria-label="缩放比例"
+              @focus="onZoomInputFocus"
+              @blur="onZoomInputBlur"
+              @keydown="onZoomInputKeydown"
+            />
+          </div>
           <button
             type="button"
             class="picker-session__icon-btn"
             title="放大 (+)"
-            @click="zoomBy(1.2)"
+            @click="zoomBy(ZOOM_STEP_FACTOR)"
           >
             <Plus :size="14" :stroke-width="2" />
           </button>
@@ -596,12 +723,12 @@ onUnmounted(() => {
 
   &__canvas {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
     display: block;
-    width: 100%;
-    height: 100%;
     opacity: 0;
     transition: opacity 0.15s;
+    will-change: transform;
 
     &--ready {
       opacity: 1;
@@ -796,8 +923,36 @@ onUnmounted(() => {
 
   &__zoom-controls {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 6px;
+    height: 32px;
+  }
+
+  &__zoom-input-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+  }
+
+  &__zoom-input {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: #e5e7eb;
+    font-size: 13px;
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    text-align: center;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: rgba(192, 132, 252, 0.5);
+    }
   }
 
   &__zoom-value {

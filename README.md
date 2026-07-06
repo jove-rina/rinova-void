@@ -45,13 +45,14 @@ Pick colors from a screen snapshot, collect multiple swatches in one session, an
 
 | | |
 |---|---|
-| **Platform** | Windows (GDI screen capture) |
+| **Platform** | Windows (GDI) · macOS (screen recording permission; hide-app capture — see [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md)) |
 | **Session** | Snapshot-based picking with zoom, pan, and optional pixel grid magnifier |
 | **Multi-pick** | Left-click to add colors; **Esc** or **Exit** to finish the session |
 | **Formats** | HEX / RGB / HSL — copy any format from records |
 | **Records** | Up to 1,000 named entries in `localStorage`; duplicate HEX is detected |
 | **Export** | JSON, CSV, or Markdown to your Downloads folder |
 | **Displays** | Per-monitor or all-screens capture; DPI-aware rendering |
+| **Toast** | Bottom toast for success/errors; pauses auto-dismiss while hovered |
 | **Tray shortcut** | Tray menu → **取色器** opens the tool and starts picking automatically |
 
 **Quick start**
@@ -91,6 +92,8 @@ pnpm tauri:build     # outputs .msi / .dmg / etc. under src-tauri/target/release
 > ```bash
 > DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer pnpm tauri:build
 > ```
+
+> **macOS color picker (dev):** `pnpm tauri:dev` uses `scripts/macos-dev-runner.sh` to sign the binary with an Apple Development certificate so Screen Recording permission persists across rebuilds. Log in to Xcode with your Apple ID first. Reset TCC after signing changes: `tccutil reset ScreenCapture com.rinova.void`
 
 > **Windows dev:** Vite ignores `src-tauri/**` to avoid `EBUSY` on `app_lib.dll` during Rust rebuilds.
 
@@ -139,6 +142,7 @@ pnpm test:rust     # cargo test — clash SSRF / port scan / status helpers
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [plan/tool-clash-service.md](plan/tool-clash-service.md) | Clash tool specification |
 | [plan/tool-color-picker.md](plan/tool-color-picker.md) | Color picker specification |
+| [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md) | macOS hide-app capture: APIs, pitfalls, debugging |
 
 ---
 

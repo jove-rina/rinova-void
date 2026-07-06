@@ -48,7 +48,9 @@ rinova-void/
 │       ├── lib.rs        应用入口、插件初始化、invoke 注册
 │       ├── commands.rs   IPC 命令层（薄封装）
 │       ├── clash.rs      Clash / rinova-proxy-sdk 集成
-│       ├── color_picker.rs  屏幕截屏与取色会话（Windows GDI）
+│       ├── color_picker/  屏幕截屏与取色会话（Windows GDI · macOS CGDisplay）
+│       │   ├── platform/  windows · macos · unsupported
+│       │   └── macos/     hide、layout、TCC、窗口列表截屏
 │       ├── export.rs     写入 Downloads 文本文件
 │       ├── tools.rs      托盘菜单工具列表（与前端 registry 对应）
 │       ├── tray.rs       系统托盘图标与菜单
@@ -98,7 +100,7 @@ rinova-void/
 |------|------|------|
 | `start_service`、`stop_service`、`get_service_status`、`refresh_service` | `api/clash-service.ts` | `clash.rs` |
 | `check_port`、`reclaim_port` | `api/clash-service.ts` | `clash.rs` |
-| `list_picker_monitors`、`start_picker`、`refresh_picker`、`finish_picker` | `api/color-picker.ts` | `color_picker.rs` |
+| `list_picker_monitors`、`start_picker`、`refresh_picker`、`finish_picker` | `api/color-picker.ts` | `color_picker/` |
 | `export_text_file`、`reveal_export_path` | `api/export.ts` | `export.rs` |
 | `init_window` | — | `window.rs` |
 
@@ -119,11 +121,13 @@ rinova-void/
 - 端口回收：对占用端口探测 `/health` 以识别遗留 Void 实例
 - 服务状态由 Tauri 管理的 `ClashServiceState` 持有
 
-### 取色器（`color_picker.rs`）
+### 取色器（`color_picker/`）
 
-- **仅 Windows** — GDI 截屏 → PNG base64 → 前端 Canvas 采样
+- **Windows** — GDI 截屏 → PNG base64 → 前端 Canvas 采样
+- **macOS** — 窗口列表合成（排除本进程）+ CGDisplay 回退；可选截屏前 hide；work area 布局（非原生全屏）
 - 支持单显示器与虚拟桌面（全部屏幕）截屏
-- 取色会话：主窗口全屏；无独立 Overlay 窗口
+- 取色会话在主窗口内；无独立 Overlay WebView
+- macOS 需屏幕录制 TCC；开发构建通过 `scripts/macos-dev-runner.sh` 稳定签名 — 见 [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md)
 - 窗口关闭、应用退出或显式取消时自动清理
 
 ### 托盘与窗口（`tray.rs`、`window.rs`）
@@ -163,7 +167,7 @@ Rust 侧 Clash 状态（当前 URL、运行端口）在进程内存中，通过 
 | 桌面 | Tauri 2（无边框，系统托盘） |
 | 插件 | window-state、global-shortcut、log（debug） |
 | Clash 代理 | rinova-proxy-sdk（Rust，进程内） |
-| 屏幕截屏 | Windows GDI + `image` crate（取色器） |
+| 屏幕截屏 | Windows GDI · macOS CoreGraphics + 窗口列表（`color_picker/`） |
 | 剪贴板 | arboard（Rust，后端按需使用） |
 | 路由 | Vue Router（`createMemoryHistory`，registry 驱动） |
 | 测试 | Vitest（前端 utils）、cargo test（Rust） |
@@ -257,4 +261,4 @@ $env:VOID_LOG = "1"
 - 本地 HTTP 服务仅绑定 `127.0.0.1`
 - CSP 限制前端网络访问为 localhost
 
-各工具的安全细节与边界情况见 `plan/tool-clash-service.md` 与 `plan/tool-color-picker.md`。
+各工具的安全细节与边界情况见 `plan/tool-clash-service.md`、`plan/tool-color-picker.md` 与 `plan/macos-color-picker-hide-app.md`。

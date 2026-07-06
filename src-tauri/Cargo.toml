@@ -14,6 +14,10 @@ rust-version = "1.77.2"
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = []
+devtools = ["tauri/devtools"]
+
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
 
@@ -29,6 +33,13 @@ tokio = { version = "1", features = ["time"] }
 arboard = "3.6"
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.9"
+core-graphics = "0.23"
+display-info = "0.4"
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSWindow"] }
+objc2-foundation = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

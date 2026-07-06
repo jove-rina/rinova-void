@@ -45,13 +45,14 @@
 
 | | |
 |---|---|
-| **平台** | Windows（GDI 截屏） |
+| **平台** | Windows（GDI）· macOS（屏幕录制权限；截屏时隐藏应用 — 见 [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md)） |
 | **会话** | 快照取色，支持缩放、平移与可选像素网格放大镜 |
 | **多点取色** | 左键追加颜色；**Esc** 或 **退出取色** 结束会话 |
 | **格式** | HEX / RGB / HSL — 可从记录中复制任意格式 |
 | **记录** | 最多 1,000 条命名记录（`localStorage`）；重复 HEX 会提示已存在 |
 | **导出** | JSON、CSV、Markdown，保存至 Downloads 文件夹 |
 | **显示器** | 可选单屏或全部屏幕；PerMonitorV2 DPI 感知 |
+| **Toast** | 底部成功/错误提示；鼠标悬停时暂停自动关闭 |
 | **托盘入口** | 托盘菜单 → **取色器** 打开工具页并自动开始取色 |
 
 **快速上手**
@@ -91,6 +92,8 @@ pnpm tauri:build     # 输出 .msi / .dmg 等，位于 src-tauri/target/release/
 > ```bash
 > DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer pnpm tauri:build
 > ```
+
+> **macOS 取色器（开发）：** `pnpm tauri:dev` 会通过 `scripts/macos-dev-runner.sh` 用 Apple Development 证书签名，避免 Sequoia 上每次重编译后屏幕录制权限失效。请先在 Xcode 登录 Apple ID。改签名后重置 TCC：`tccutil reset ScreenCapture com.rinova.void`
 
 > **Windows 开发：** Vite 忽略 `src-tauri/**`，避免 Rust 重编译时 `app_lib.dll` 出现 `EBUSY`。
 
@@ -139,6 +142,7 @@ pnpm test:rust     # cargo test — clash SSRF / 端口扫描 / 状态辅助
 | [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md) | 版本历史 |
 | [plan/tool-clash-service.md](plan/tool-clash-service.md) | Clash 工具规格 |
 | [plan/tool-color-picker.md](plan/tool-color-picker.md) | 取色器规格 |
+| [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md) | macOS「截屏时隐藏应用」实现与踩坑 |
 
 ---
 

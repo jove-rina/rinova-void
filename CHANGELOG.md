@@ -12,6 +12,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ---
 
+## [0.3.3] - 2026-07-07
+
+### Fixed
+
+- **GitHub Release workflow** — Apple signing configuration no longer uses `secrets` in step `if:` conditions (invalid in GitHub Actions); checks certificate presence in a shell script instead
+- **CI (Linux)** — install Tauri system libraries via `scripts/ci-linux-deps.sh` before Rust compile; fixes `glib-2.0` pkg-config errors on Ubuntu runners
+- **Release (Linux)** — Ubuntu 22.04 uses `libwebkit2gtk-4.0-dev` (4.1 is for 24.04+); shared install script with explicit `libglib2.0-dev` / `libgtk-3-dev`
+- **Cross-platform build** — color picker: import `tauri::Manager` on non-macOS (`window_layout.rs`); gate `PickerState` import to macOS-only code in `capture.rs`
+- **Windows build** — import `std::process::Stdio` in `clash.rs` for `taskkill` stdout/stderr suppression
+
+---
+
 ## [0.3.2] - 2026-07-07
 
 ### Fixed
@@ -95,7 +107,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Frameless main window with custom drag header
 - CI — Vitest, Rust unit tests, multi-platform build checks
 
-[Unreleased]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/jove-rina/rinova-void/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/jove-rina/rinova-void/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...v0.3.0

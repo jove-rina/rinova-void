@@ -186,14 +186,14 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 
 ### GitHub Actions
 
-- **CI** (`.github/workflows/ci.yml`) — Vitest, `cargo test`, frontend typecheck/build, `cargo check` on Ubuntu, macOS, and Windows; Rust build cache enabled
-- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.3.2`); builds macOS Apple Silicon + Intel, Linux, and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release. Apple signing secrets are injected only when `APPLE_CERTIFICATE` is configured; otherwise macOS builds unsigned.
+- **CI** (`.github/workflows/ci.yml`) — Vitest, `cargo test`, frontend typecheck/build, `cargo check` on Ubuntu, macOS, and Windows; Rust build cache enabled. Ubuntu jobs run `scripts/ci-linux-deps.sh` (WebKit/GTK/glib per [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)) before any Rust step.
+- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.3.3`); builds macOS Apple Silicon + Intel, Linux (`ubuntu-22.04`, `libwebkit2gtk-4.0-dev`), and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release. Linux deps via the same `scripts/ci-linux-deps.sh` with distro-specific WebKit package. Apple signing secrets are injected only when `APPLE_CERTIFICATE` is configured (checked in a shell script, not step `if:`); otherwise macOS builds unsigned.
 
 **Release checklist**
 
 1. Bump version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
 2. Update `CHANGELOG.md` / `CHANGELOG.zh-CN.md`
-3. Merge to `main`, then tag and push: `git tag v0.3.2 && git push origin v0.3.2`
+3. Merge to `main`, then tag and push: `git tag v0.3.3 && git push origin v0.3.3`
 
 | Secret | Purpose |
 |--------|---------|

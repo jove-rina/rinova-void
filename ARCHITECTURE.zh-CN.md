@@ -186,14 +186,14 @@ pnpm tauri:build
 
 ### GitHub Actions
 
-- **CI**（`.github/workflows/ci.yml`）— Vitest、`cargo test`、前端类型检查/构建、Ubuntu / macOS / Windows 上的 `cargo check`；启用 Rust 构建缓存
-- **Release**（`.github/workflows/release.yml`）— 推送 tag `v*`（如 `v0.3.2`）触发；经 `tauri-apps/tauri-action` 构建 macOS Apple Silicon + Intel、Linux、Windows，并发布 GitHub Release。仅当配置了 `APPLE_CERTIFICATE` 时才注入 Apple 签名环境变量，否则 macOS 产出未签名包。
+- **CI**（`.github/workflows/ci.yml`）— Vitest、`cargo test`、前端类型检查/构建、Ubuntu / macOS / Windows 上的 `cargo check`；启用 Rust 构建缓存。Ubuntu job 在任何 Rust 步骤之前执行 `scripts/ci-linux-deps.sh`（按 [Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/) 安装 WebKit/GTK/glib）。
+- **Release**（`.github/workflows/release.yml`）— 推送 tag `v*`（如 `v0.3.3`）触发；经 `tauri-apps/tauri-action` 构建 macOS Apple Silicon + Intel、Linux（`ubuntu-22.04`，`libwebkit2gtk-4.0-dev`）、Windows，并发布 GitHub Release。Linux 依赖同样通过 `scripts/ci-linux-deps.sh` 安装（按发行版传入 WebKit 包名）。仅当配置了 `APPLE_CERTIFICATE` 时才注入 Apple 签名环境变量（在 shell 脚本内判断，非 step `if:`）；否则 macOS 产出未签名包。
 
 **发布清单**
 
 1. 同步 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 版本号
 2. 更新 `CHANGELOG.md` / `CHANGELOG.zh-CN.md`
-3. 合并到 `main` 后打 tag 并推送：`git tag v0.3.2 && git push origin v0.3.2`
+3. 合并到 `main` 后打 tag 并推送：`git tag v0.3.3 && git push origin v0.3.3`
 
 | Secret | 用途 |
 |--------|------|

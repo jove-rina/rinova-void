@@ -22,6 +22,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: bash scripts/ci-linux-deps.sh
+
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -55,6 +59,10 @@ jobs:
           cache: pnpm
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: bash scripts/ci-linux-deps.sh
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2

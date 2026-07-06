@@ -28,4 +28,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+
+  build: {
+    // Tauri CSP 的 img-src 仅允许 'self'，禁止 Vite 默认的 data: 内联
+    assetsInlineLimit: 0,
+  },
 })

@@ -12,6 +12,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ---
 
+## [0.3.2] - 2026-07-07
+
+### Fixed
+
+- **GitHub Release (macOS)** — only inject `APPLE_*` signing secrets when configured; avoids `security import` failure and allows unsigned macOS bundles when no Apple Developer certificate is set
+
+### Changed
+
+- Color picker capture / window layout minor backend adjustments
+
+---
+
 ## [0.3.1] - 2026-07-07
 
 ### Added
@@ -83,7 +95,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Frameless main window with custom drag header
 - CI — Vitest, Rust unit tests, multi-platform build checks
 
-[Unreleased]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/jove-rina/rinova-void/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...v0.3.0
 [0.2.0]: https://github.com/jove-rina/rinova-void/compare/0.1.0...0.2.0

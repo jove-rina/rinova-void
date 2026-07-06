@@ -187,13 +187,13 @@ pnpm tauri:build
 ### GitHub Actions
 
 - **CI**（`.github/workflows/ci.yml`）— Vitest、`cargo test`、前端类型检查/构建、Ubuntu / macOS / Windows 上的 `cargo check`；启用 Rust 构建缓存
-- **Release**（`.github/workflows/release.yml`）— 推送 tag `v*`（如 `v0.3.1`）触发；经 `tauri-apps/tauri-action` 构建 macOS Apple Silicon + Intel、Linux、Windows，并发布 GitHub Release
+- **Release**（`.github/workflows/release.yml`）— 推送 tag `v*`（如 `v0.3.2`）触发；经 `tauri-apps/tauri-action` 构建 macOS Apple Silicon + Intel、Linux、Windows，并发布 GitHub Release。仅当配置了 `APPLE_CERTIFICATE` 时才注入 Apple 签名环境变量，否则 macOS 产出未签名包。
 
 **发布清单**
 
 1. 同步 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 版本号
 2. 更新 `CHANGELOG.md` / `CHANGELOG.zh-CN.md`
-3. 合并到 `main` 后打 tag 并推送：`git tag v0.3.1 && git push origin v0.3.1`
+3. 合并到 `main` 后打 tag 并推送：`git tag v0.3.2 && git push origin v0.3.2`
 
 | Secret | 用途 |
 |--------|------|

@@ -103,7 +103,7 @@ pnpm tauri:build     # outputs .msi / .dmg / etc. under src-tauri/target/release
 
 Signed release builds via GitHub Actions require Apple signing secrets — see [ARCHITECTURE.md](ARCHITECTURE.md#release--ci). Local unsigned builds work without them.
 
-To cut a new release: bump version, update the changelog, merge to `main`, then `git tag v0.3.1 && git push origin v0.3.1`.
+To cut a new release: bump version, update the changelog, merge to `main`, then `git tag v0.3.2 && git push origin v0.3.2`.
 
 ---
 

@@ -103,7 +103,7 @@ pnpm tauri:build     # 输出 .msi / .dmg 等，位于 src-tauri/target/release/
 
 GitHub Actions 签名发布需配置 Apple 证书 Secrets — 详见 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md#发布与-ci)。本地未签名构建无需配置。
 
-发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.3.1 && git push origin v0.3.1`。
+发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.3.2 && git push origin v0.3.2`。
 
 ---
 

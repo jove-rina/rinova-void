@@ -12,6 +12,18 @@ Void 的所有重要变更均记录于此。
 
 ---
 
+## [0.3.2] - 2026-07-07
+
+### 修复
+
+- **GitHub Release（macOS）** — 仅在配置了 Apple 签名 Secret 时才注入 `APPLE_*` 环境变量；避免 `security import` 失败，未配置开发者证书时可成功产出未签名 macOS 安装包
+
+### 变更
+
+- 取色器截屏 / 窗口布局后端小幅调整
+
+---
+
 ## [0.3.1] - 2026-07-07
 
 ### 新增
@@ -83,7 +95,8 @@ Void 的所有重要变更均记录于此。
 - 无边框主窗口与自定义拖拽标题栏
 - CI — Vitest、Rust 单元测试、多平台构建检查
 
-[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...HEAD
+[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/jove-rina/rinova-void/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...v0.3.0
 [0.2.0]: https://github.com/jove-rina/rinova-void/compare/0.1.0...0.2.0

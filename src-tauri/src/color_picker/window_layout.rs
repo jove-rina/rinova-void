@@ -9,7 +9,7 @@ pub use crate::color_picker::macos::layout::{
 };
 
 #[cfg(not(target_os = "macos"))]
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 #[cfg(not(target_os = "macos"))]
 use crate::color_picker::types::PickerState;

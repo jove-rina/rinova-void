@@ -8,7 +8,9 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 use crate::color_picker::platform;
-use crate::color_picker::types::{MonitorInfo, PickerState, ScreenCapture, StartPickerResult};
+use crate::color_picker::types::{MonitorInfo, ScreenCapture, StartPickerResult};
+#[cfg(target_os = "macos")]
+use crate::color_picker::types::PickerState;
 
 /// Windows / 其他非 macOS：hide 后等待合成器刷新，再 BitBlt。
 #[cfg(not(target_os = "macos"))]

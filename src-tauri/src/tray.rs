@@ -23,7 +23,7 @@ pub fn setup<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), Box<dyn std::e
             "tray-hide" => hide_main_window(app),
             "tray-quit" => {
                 let state = app.state::<crate::clash::ClashServiceState>();
-                crate::clash::stop_service_impl(&state);
+                crate::clash::stop_service_blocking(&state);
                 app.exit(0);
             }
             _ => {}

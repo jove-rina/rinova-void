@@ -7,8 +7,8 @@ Built with **Tauri 2** + **Vue 3** + **Vite 8** + **Less** + **TypeScript** + **
 ## Prerequisites
 
 - **pnpm** 8+
-- **Rust** 1.77+
-- **Node.js 18+** — only needed for **development** or if you skip the sidecar build (release bundles a standalone proxy binary)
+- **Rust** 1.77+ (Tauri backend + embedded [rinova-proxy-sdk](https://crates.io/crates/rinova-proxy-sdk))
+- **Node.js 18+** — frontend dev/build only (release app does not require Node at runtime)
 
 ## Project structure
 
@@ -25,13 +25,9 @@ rinova-void/
 │   └── styles/           全局 Less + CSS 变量主题
 ├── public/
 │   └── favicon.svg       Lucide CircleDot 品牌图标
-├── scripts/
-│   └── build-sidecar.mjs pkg → Tauri sidecar binary
 ├── src-tauri/
-│   ├── binaries/         proxy-server sidecar (gitignored, built locally)
 │   ├── permissions/      Tauri ACL permissions
-│   ├── scripts/          proxy-server bundle (Clash tool)
-│   └── src/              Rust backend (clash, tray, sidecar)
+│   └── src/              Rust backend (clash, tray, window, shortcut)
 └── plan/                 工具与审查文档
     ├── tool-clash-service.md
     └── review/
@@ -41,25 +37,21 @@ rinova-void/
 
 ```bash
 pnpm install
-pnpm tauri:dev       # builds proxy bundle + starts Vite + Tauri
+pnpm tauri:dev       # Vite + Tauri hot reload
 ```
 
-Optional — build bundled proxy sidecar (no system Node at runtime):
+Release build:
 
 ```bash
-pnpm build:sidecar   # ~20s first run (downloads Node base for pkg)
-```
-
-Release build (includes sidecar):
-
-```bash
-pnpm tauri:build     # runs build:all → .dmg / .msi / …
+pnpm tauri:build     # pnpm build → Tauri bundle (.msi / .dmg / …)
 ```
 
 > **macOS build**: if `xcrun` fails:
 > ```bash
 > DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer pnpm tauri:build
 > ```
+
+> **Windows dev**: Vite ignores `src-tauri/**` to avoid `EBUSY` on `app_lib.dll` during Rust rebuilds.
 
 ### Code signing (release)
 
@@ -100,7 +92,7 @@ Window position is restored on next launch (`tauri-plugin-window-state`).
 
 ```bash
 pnpm test          # Vitest (frontend utils)
-pnpm test:rust     # cargo test (clash SSRF / port scan)
+pnpm test:rust     # cargo test (clash SSRF / port scan / status helpers)
 ```
 
 ## Tools
@@ -109,9 +101,10 @@ pnpm test:rust     # cargo test (clash SSRF / port scan)
 
 本地 HTTP 服务 exposing `/clash.yaml` for Clash Verge.
 
+- **Runtime**：[`rinova-proxy-sdk`](https://crates.io/crates/rinova-proxy-sdk) 内嵌于 Tauri 主进程，无需 Node / sidecar
 - **Prefs**：订阅 URL 与端口自动记忆（重启后恢复）
-- **Port**：遗留 Void 进程占端口时自动回收；被其他程序占用时可选手动换端口
-- **UI 图标**：Lucide（`Shield`、`Play`、`Loader2`、`Copy` 等）
+- **Port**：遗留 Void 进程占端口时自动回收（不会 kill 当前进程）；被其他程序占用时可选手动换端口
+- **Clash 订阅**：在 Clash Verge 中添加 `http://127.0.0.1:{port}/clash.yaml`，不要直接填机场原始链接
 - 详见 [plan/tool-clash-service.md](plan/tool-clash-service.md)
 
 ## Tech stack
@@ -123,5 +116,6 @@ pnpm test:rust     # cargo test (clash SSRF / port scan)
 | Build | Vite 8 |
 | Styling | Less + CSS variables |
 | Language | TypeScript (strict) |
-| Desktop | Tauri 2 (transparent, frameless, system tray) |
+| Desktop | Tauri 2 (frameless, system tray) |
+| Clash proxy | rinova-proxy-sdk (Rust, in-process) |
 | Routing | Vue Router (`createMemoryHistory`, registry-driven) |

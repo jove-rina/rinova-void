@@ -45,7 +45,7 @@ export const useClashService = () => {
   const successMsg = ref('')
   const copied = ref(false)
   const refreshing = ref(false)
-  const runner = ref<'sidecar' | 'node' | null>(null)
+  const runner = ref<'builtin' | null>(null)
 
   // ── 端口相关提示与选项 ─────────────────────────────────────────────
   const portHint = ref('')
@@ -132,16 +132,17 @@ export const useClashService = () => {
    * @param s - `getServiceStatus` 返回的快照
    */
   const applyServiceStatus = (s: ServiceStatus): void => {
-    runner.value = s.runner
     if (s.status === 'running' && s.base_url) {
       status.value = 'running'
       serviceUrl.value = s.base_url
+      runner.value = s.runner === 'builtin' ? 'builtin' : null
       if (s.port) port.value = s.port
       if (s.url) url.value = s.url
       persistPrefs()
     } else {
       status.value = 'idle'
       serviceUrl.value = ''
+      runner.value = null
     }
   }
 
@@ -188,6 +189,7 @@ export const useClashService = () => {
         showSuccess('服务已启动')
       }
       status.value = 'running'
+      runner.value = 'builtin'
       portHint.value = ''
       persistPrefs()
     } catch (err) {
@@ -197,7 +199,7 @@ export const useClashService = () => {
   }
 
   /**
-   * 停止正在运行的服务子进程。
+   * 停止正在运行的内置代理服务。
    */
   const handleStop = async (): Promise<void> => {
     status.value = 'stopping'
@@ -208,6 +210,7 @@ export const useClashService = () => {
       await stopService()
       status.value = 'idle'
       serviceUrl.value = ''
+      runner.value = null
       showSuccess('服务已停止')
     } catch (err) {
       errorMsg.value = String(err)

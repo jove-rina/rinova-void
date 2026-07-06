@@ -17,7 +17,7 @@ const appWindow = getCurrentWindow()
 const router = useRouter()
 
 /**
- * 应用挂载后初始化窗口样式（圆角、透明背景等）。
+ * 应用挂载后初始化窗口样式（背景色等）。
  * 浏览器 dev 预览时 invoke 不可用，catch 后静默继续。
  */
 onMounted(async () => {
@@ -54,14 +54,11 @@ const goHome = (): void => {
 </template>
 
 <style lang="less" scoped>
-/* 主窗口容器：全屏毛玻璃卡片，内含标题栏 + 内容区 */
+/* 主窗口容器：实色背景，内含标题栏 + 内容区 */
 .void-window {
   width: 100vw;
   height: 100vh;
-  border-radius: var(--void-radius);
   background: var(--void-bg);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
   border: 1px solid var(--void-border);
   overflow: hidden;
   display: flex;

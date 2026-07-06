@@ -1,8 +1,8 @@
 [package]
 name = "rinova-void"
-version = "0.1.0"
+version = "0.2.0"
 description = "Void — Your pocket from the void. A desktop toolbox."
-authors = ["Rina <rina@rinova.dev>"]
+authors = ["Rina <jiuzhang.song+rina@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/jove-rina/rinova-void"
 edition = "2021"
@@ -22,8 +22,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
 libc = "0.2"
-tauri = { version = "2.11.3", features = ["macos-private-api", "tray-icon"] }
+tauri = { version = "2.11.3", features = [ "tray-icon"] }
 tauri-plugin-log = "2"
+rinova-proxy-sdk = "1.0.0"
+tokio = { version = "1", features = ["time"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"

@@ -54,12 +54,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build proxy bundle
-        run: pnpm build:proxy
-
-      - name: Build proxy sidecar
-        run: pnpm build:sidecar
-
       - name: Frontend typecheck & build
         run: pnpm build
 

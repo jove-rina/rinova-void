@@ -2,14 +2,14 @@
  * main.less
  * Void 全局样式与 CSS 设计令牌
  *
- * 定义暗色毛玻璃主题变量，供各组件通过 var(--void-*) 引用。
- * body/#app 透明背景配合 Tauri 窗口圆角；不支持 backdrop-filter 时降级为纯色。
+ * 定义暗色主题变量，供各组件通过 var(--void-*) 引用。
+ * 窗口为不透明实色背景，与 Tauri backgroundColor 保持一致。
  */
 
 /* ── 设计令牌（Design Tokens）────────────────────────────────────── */
 :root {
-  /** 主背景：半透明深色，配合 backdrop-filter 形成毛玻璃 */
-  --void-bg: rgba(22, 23, 29, 0.85);
+  /** 主背景：与 tauri.conf.json backgroundColor 一致 */
+  --void-bg: #16171d;
   /** 主文字色 */
   --void-text: #e5e7eb;
   /** 次要文字、标签、提示 */
@@ -20,13 +20,11 @@
   --void-accent-dim: rgba(192, 132, 252, 0.3);
   /** 分隔线、卡片底、输入框边框 */
   --void-border: rgba(255, 255, 255, 0.08);
-  /** 窗口外圆角，与 Tauri 窗口配置一致 */
-  --void-radius: 24px;
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: dark;
   color: var(--void-text);
-  background: transparent;
+  background: var(--void-bg);
   -webkit-font-smoothing: antialiased;
   /** 默认禁止文本选择，输入框组件内单独开启 user-select: text */
   user-select: none;
@@ -39,23 +37,16 @@
   box-sizing: border-box;
 }
 
-/** 无边框窗口：禁止页面滚动，背景透明以露出系统圆角 */
+html,
 body {
   margin: 0;
   overflow: hidden;
-  background: transparent;
+  background: var(--void-bg);
 }
 
 /** Vue 挂载根节点，占满视口 */
 #app {
   width: 100vw;
   height: 100vh;
-  background: transparent;
-}
-
-/* backdrop-filter 降级：旧系统/WebView 不支持时使用不透明背景 */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .void-window {
-    background: rgb(22, 23, 29) !important;
-  }
+  background: var(--void-bg);
 }

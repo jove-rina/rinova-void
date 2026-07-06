@@ -15,6 +15,10 @@ export default defineConfig({
     strictPort: true,
     host: host || false,
     port: 5173,
+    // Windows: Rust rebuild locks app_lib.dll; exclude src-tauri from Vite watcher
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
   },
 
   envPrefix: ['VITE_', 'TAURI_'],

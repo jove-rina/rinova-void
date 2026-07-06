@@ -3,12 +3,13 @@
  * WindowHeader.vue
  * 自定义窗口标题栏（无边框 Tauri 窗口专用）
  *
- * - 左侧：应用名，支持拖拽移动窗口；双击向父组件 emit dblclick（回首页）
+ * - 左侧：Logo + 应用名，支持拖拽移动窗口；双击向父组件 emit dblclick（回首页）
  * - 右侧：关闭按钮，emit close
  * - data-tauri-drag-region / startDragging：macOS 窗口拖拽 API
  */
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { X } from '@lucide/vue'
+import logoUrl from '@/assets/logo.svg'
 
 /** 向父组件（App.vue）上报的用户操作 */
 const emit = defineEmits<{
@@ -43,7 +44,8 @@ const startDrag = async (e: MouseEvent): Promise<void> => {
       @mousedown="startDrag"
       @dblclick.stop="emit('dblclick')"
     >
-      Void
+      <img class="window-header__logo" :src="logoUrl" alt="" draggable="false" />
+      <span class="window-header__name">Void</span>
     </div>
     <button
       class="window-header__close"
@@ -68,13 +70,28 @@ const startDrag = async (e: MouseEvent): Promise<void> => {
 
   &__title {
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  &__logo {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  &__name {
     font-size: 13px;
     font-weight: 600;
     color: var(--void-text-dim);
     letter-spacing: 1px;
     text-transform: uppercase;
-    -webkit-app-region: drag;
-    app-region: drag;
   }
 
   &__close {

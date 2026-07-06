@@ -1,6 +1,5 @@
 mod clash;
 mod commands;
-mod sidecar;
 mod shortcut;
 mod tray;
 mod window;
@@ -53,7 +52,7 @@ pub fn run() {
             match event {
                 RunEvent::Exit => {
                     let state: tauri::State<'_, clash::ClashServiceState> = app_handle.state();
-                    clash::stop_service_impl(&state);
+                    clash::stop_service_blocking(&state);
                 }
                 RunEvent::ExitRequested { api, code, .. } => {
                     if code.is_none() {

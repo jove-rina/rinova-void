@@ -22,10 +22,9 @@ export interface ServiceStatus {
   base_url: string | null
   /**
    * 实际运行方式：
-   * - sidecar：随应用打包的内置二进制
-   * - node：系统 Node 回退方案
+   * - builtin：Rust SDK 内嵌代理（仅 running 时返回）
    */
-  runner: 'sidecar' | 'node'
+  runner: 'builtin' | ''
 }
 
 /**

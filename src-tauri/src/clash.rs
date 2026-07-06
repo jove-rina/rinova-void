@@ -1,14 +1,16 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::Mutex;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
+use rinova_proxy_sdk::{start_server, RuleMode, ServerHandle, ServerOptions};
 use serde::Serialize;
 use serde_json::Value;
 use tauri::Manager;
 
-use crate::sidecar::{self, ProxyRunner};
+const REFRESH_INTERVAL_MIN: u64 = 60;
+const RUNNER_BUILTIN: &str = "builtin";
 
 // ─── Types ─────────────────────────────────────────────────
 
@@ -23,41 +25,9 @@ pub struct ServiceStatus {
 }
 
 pub struct ClashServiceState {
-    pub child: Mutex<Option<Child>>,
+    pub server: Mutex<Option<ServerHandle>>,
     pub active_port: Mutex<Option<u16>>,
     pub active_url: Mutex<Option<String>>,
-    pub runner: ProxyRunner,
-}
-
-// ─── Node resolution (dev fallback) ────────────────────────
-
-pub fn resolve_node_path() -> String {
-    use std::path::Path;
-
-    if node_available("node") {
-        return "node".to_string();
-    }
-    for candidate in [
-        "/opt/homebrew/bin/node",
-        "/usr/local/bin/node",
-        "/usr/bin/node",
-    ] {
-        if Path::new(candidate).is_file() && node_available(candidate) {
-            return candidate.to_string();
-        }
-    }
-    "node".to_string()
-}
-
-fn node_available(path: &str) -> bool {
-    use std::process::Command;
-    Command::new(path)
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
 }
 
 // ─── URL validation (SSRF guard) ───────────────────────────
@@ -119,33 +89,21 @@ fn is_private_ip(ip: &std::net::IpAddr) -> bool {
     }
 }
 
-// ─── Process helpers ───────────────────────────────────────
+// ─── Embedded proxy server ─────────────────────────────────
 
-fn kill_child(child: &mut Child) {
-    #[cfg(unix)]
-    unsafe {
-        libc::kill(child.id() as i32, libc::SIGTERM);
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = child.kill();
-    }
-    for _ in 0..30 {
-        if matches!(child.try_wait(), Ok(Some(_))) {
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    let _ = child.kill();
-    let _ = child.wait();
-}
+pub async fn stop_service_impl(state: &ClashServiceState) {
+    let handle = {
+        let mut server_lock = match state.server.lock() {
+            Ok(guard) => guard,
+            Err(_) => return,
+        };
+        server_lock.take()
+    };
 
-pub fn stop_service_impl(state: &ClashServiceState) {
-    if let Ok(mut child_lock) = state.child.lock() {
-        if let Some(mut child) = child_lock.take() {
-            kill_child(&mut child);
-        }
+    if let Some(handle) = handle {
+        handle.shutdown().await;
     }
+
     if let Ok(mut port_lock) = state.active_port.lock() {
         *port_lock = None;
     }
@@ -154,39 +112,52 @@ pub fn stop_service_impl(state: &ClashServiceState) {
     }
 }
 
-fn stderr_temp_path() -> std::path::PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    std::env::temp_dir().join(format!("rinova-void-stderr-{}.log", nanos))
+/// Sync wrapper for app exit / tray quit (off the async command path).
+pub fn stop_service_blocking(state: &ClashServiceState) {
+    tauri::async_runtime::block_on(stop_service_impl(state));
 }
 
 // ─── HTTP helpers ──────────────────────────────────────────
 
+fn configure_probe_timeouts(stream: &TcpStream) -> Result<(), String> {
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .map_err(|e| format!("设置读超时失败: {e}"))?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .map_err(|e| format!("设置写超时失败: {e}"))?;
+    Ok(())
+}
+
+fn health_response_ok(resp: &str) -> bool {
+    resp.contains("200 OK")
+        || resp.contains("\"status\":\"ok\"")
+        || resp.contains("\"status\": \"ok\"")
+}
+
 fn health_check(port: u16) -> Result<(), String> {
     let addr = format!("127.0.0.1:{}", port);
     let mut stream = TcpStream::connect_timeout(
-        &addr.parse().map_err(|e| format!("地址解析失败: {}", e))?,
+        &addr.parse().map_err(|e| format!("地址解析失败: {e}"))?,
         Duration::from_secs(2),
     )
-    .map_err(|_| format!("端口 {} 未监听到服务", port))?;
+    .map_err(|_| format!("端口 {port} 未监听到服务"))?;
+    configure_probe_timeouts(&stream)?;
 
     let req = format!(
-        "GET /health HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n",
-        port
+        "GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
     );
     stream
         .write_all(req.as_bytes())
         .map_err(|_| "发送请求失败".to_string())?;
 
-    let mut buf = [0u8; 256];
+    let mut buf = [0u8; 512];
     let n = stream
         .read(&mut buf)
         .map_err(|_| "读取响应失败".to_string())?;
     let resp = String::from_utf8_lossy(&buf[..n]);
 
-    if resp.contains("200 OK") || resp.contains("\"status\":\"ok\"") {
+    if health_response_ok(&resp) {
         Ok(())
     } else {
         Err("服务响应不符合预期".to_string())
@@ -216,13 +187,17 @@ fn is_likely_our_proxy(port: u16) -> bool {
     health_check(port).is_ok()
 }
 
+fn current_pid() -> i32 {
+    std::process::id() as i32
+}
+
 fn pids_listening_on_port(port: u16) -> Result<Vec<i32>, String> {
     #[cfg(unix)]
     {
         let output = Command::new("lsof")
-            .args(["-ti", &format!("tcp:{}", port)])
+            .args(["-ti", &format!("tcp:{port}")])
             .output()
-            .map_err(|e| format!("无法检测端口占用: {}", e))?;
+            .map_err(|e| format!("无法检测端口占用: {e}"))?;
 
         let pids: Vec<i32> = String::from_utf8_lossy(&output.stdout)
             .lines()
@@ -232,11 +207,11 @@ fn pids_listening_on_port(port: u16) -> Result<Vec<i32>, String> {
     }
     #[cfg(windows)]
     {
-        let needle = format!(":{}", port);
+        let needle = format!(":{port}");
         let output = Command::new("netstat")
             .args(["-ano", "-p", "tcp"])
             .output()
-            .map_err(|e| format!("无法检测端口占用: {}", e))?;
+            .map_err(|e| format!("无法检测端口占用: {e}"))?;
 
         let mut pids = Vec::new();
         for line in String::from_utf8_lossy(&output.stdout).lines() {
@@ -271,27 +246,34 @@ fn signal_pids(pids: &[i32], force: bool) {
     }
 }
 
-/// Terminate processes listening on `port` (SIGTERM → wait → SIGKILL).
+/// Terminate **other** processes listening on `port`. Never kills the current process.
 fn force_release_port(port: u16) -> Result<(), String> {
     if !is_port_listening(port) {
         return Ok(());
     }
 
-    let pids = pids_listening_on_port(port)?;
-    if !pids.is_empty() {
-        signal_pids(&pids, false);
-        if wait_port_free(port, Duration::from_secs(3)) {
-            return Ok(());
-        }
-        signal_pids(&pids, true);
-        if wait_port_free(port, Duration::from_secs(2)) {
-            return Ok(());
-        }
-    } else if wait_port_free(port, Duration::from_secs(2)) {
+    let self_pid = current_pid();
+    let pids: Vec<i32> = pids_listening_on_port(port)?
+        .into_iter()
+        .filter(|pid| *pid != self_pid)
+        .collect();
+
+    if pids.is_empty() {
+        return Err(format!(
+            "端口 {port} 正由本应用占用，请先在应用内停止服务"
+        ));
+    }
+
+    signal_pids(&pids, false);
+    if wait_port_free(port, Duration::from_secs(3)) {
+        return Ok(());
+    }
+    signal_pids(&pids, true);
+    if wait_port_free(port, Duration::from_secs(2)) {
         return Ok(());
     }
 
-    Err(format!("无法释放端口 {}，请手动关闭占用程序", port))
+    Err(format!("无法释放端口 {port}，请手动关闭占用程序"))
 }
 
 /// Reclaim a port left by a previous Void proxy instance (health check must pass).
@@ -303,7 +285,7 @@ pub fn reclaim_port(port: u16) -> Result<(), String> {
         return Ok(());
     }
     if !is_likely_our_proxy(port) {
-        return Err(format!("端口 {} 被其他程序占用，无法自动释放", port));
+        return Err(format!("端口 {port} 被其他程序占用，无法自动释放"));
     }
     force_release_port(port)
 }
@@ -347,38 +329,36 @@ fn prepare_listen_port(preferred: u16, allow_fallback: bool) -> Result<(u16, boo
             return Ok((next, true, false));
         }
         return Err(format!(
-            "端口 {} 被其他程序占用，且 {}–{} 无可用端口",
-            preferred,
+            "端口 {preferred} 被其他程序占用，且 {}–{} 无可用端口",
             preferred + 1,
             preferred.saturating_add(PORT_SCAN_MAX).min(65535)
         ));
     }
 
     Err(format!(
-        "端口 {} 已被其他程序占用。请先关闭占用程序，或勾选「占用时自动换端口」",
-        preferred
+        "端口 {preferred} 已被其他程序占用。请先关闭占用程序，或勾选「占用时自动换端口」"
     ))
 }
 
 fn http_post_json(port: u16, path: &str) -> Result<Value, String> {
     let mut stream = TcpStream::connect_timeout(
-        &format!("127.0.0.1:{}", port).parse().unwrap(),
+        &format!("127.0.0.1:{port}").parse().unwrap(),
         Duration::from_secs(5),
     )
     .map_err(|_| "无法连接本地服务".to_string())?;
+    configure_probe_timeouts(&stream)?;
 
     let req = format!(
-        "POST {} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-        path, port
+        "POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     );
     stream
         .write_all(req.as_bytes())
-        .map_err(|e| format!("请求失败: {}", e))?;
+        .map_err(|e| format!("请求失败: {e}"))?;
 
     let mut buf = Vec::new();
     stream
         .read_to_end(&mut buf)
-        .map_err(|e| format!("读取响应失败: {}", e))?;
+        .map_err(|e| format!("读取响应失败: {e}"))?;
 
     let resp = String::from_utf8_lossy(&buf);
     let body = resp
@@ -395,7 +375,7 @@ fn http_post_json(port: u16, path: &str) -> Result<Value, String> {
         ));
     }
 
-    serde_json::from_str(body).map_err(|e| format!("解析响应失败: {}", e))
+    serde_json::from_str(body).map_err(|e| format!("解析响应失败: {e}"))
 }
 
 fn running_status(state: &ClashServiceState) -> ServiceStatus {
@@ -405,30 +385,59 @@ fn running_status(state: &ClashServiceState) -> ServiceStatus {
         status: "running".to_string(),
         port,
         url,
-        base_url: port.map(|p| format!("http://127.0.0.1:{}", p)),
-        runner_kind: state.runner.label().to_string(),
+        base_url: port.map(|p| format!("http://127.0.0.1:{p}")),
+        runner_kind: RUNNER_BUILTIN.to_string(),
     }
 }
 
-fn stopped_status(state: &ClashServiceState) -> ServiceStatus {
+fn stopped_status() -> ServiceStatus {
     ServiceStatus {
         status: "stopped".to_string(),
         port: None,
         url: None,
         base_url: None,
-        runner_kind: state.runner.label().to_string(),
+        runner_kind: String::new(),
     }
 }
 
-fn clear_running_state(state: &ClashServiceState, child: &mut Option<Child>) {
-    if let Some(mut c) = child.take() {
-        kill_child(&mut c);
+/// Whether the embedded service should be considered running for status polling.
+pub(crate) fn service_is_alive(has_handle: bool, port: Option<u16>) -> bool {
+    if !has_handle {
+        return false;
     }
-    if let Ok(mut p) = state.active_port.lock() {
-        *p = None;
+    port.is_some_and(is_port_listening)
+}
+
+/// Wait until the TCP listener accepts connections. Avoids blocking HTTP reads on the async runtime.
+async fn wait_for_listen(port: u16, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if is_port_listening(port) {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    if let Ok(mut u) = state.active_url.lock() {
-        *u = None;
+    false
+}
+
+fn detach_stale_service(state: &ClashServiceState) {
+    let handle = state
+        .server
+        .lock()
+        .ok()
+        .and_then(|mut guard| guard.take());
+
+    if let Ok(mut port_lock) = state.active_port.lock() {
+        *port_lock = None;
+    }
+    if let Ok(mut url_lock) = state.active_url.lock() {
+        *url_lock = None;
+    }
+
+    if let Some(handle) = handle {
+        tauri::async_runtime::spawn(async move {
+            handle.shutdown().await;
+        });
     }
 }
 
@@ -466,10 +475,13 @@ pub fn check_port(port: u16) -> Result<PortCheckResult, String> {
         });
     }
     if is_likely_our_proxy(port) {
+        let reclaimable = pids_listening_on_port(port)
+            .map(|pids| pids.iter().any(|pid| *pid != current_pid()))
+            .unwrap_or(false);
         return Ok(PortCheckResult {
             available: false,
             port,
-            reclaimable: true,
+            reclaimable,
             foreign: false,
             suggested_port: None,
         });
@@ -483,7 +495,7 @@ pub fn check_port(port: u16) -> Result<PortCheckResult, String> {
     })
 }
 
-pub fn start_service(
+pub async fn start_service(
     state: &ClashServiceState,
     url: String,
     port: u16,
@@ -495,87 +507,34 @@ pub fn start_service(
         return Err("端口必须在 1024-65535 之间".to_string());
     }
 
-    let mut child_lock = state.child.lock().map_err(|e| e.to_string())?;
-    if let Some(ref mut child) = *child_lock {
-        match child.try_wait() {
-            Ok(Some(_)) => *child_lock = None,
-            Ok(None) => {
-                let active = state.active_port.lock().ok().and_then(|p| *p);
-                return Err(format!("服务已在运行 (port {})", active.unwrap_or(port)));
-            }
-            Err(_) => *child_lock = None,
+    {
+        let server_lock = state.server.lock().map_err(|e| e.to_string())?;
+        if server_lock.is_some() {
+            let active = state.active_port.lock().ok().and_then(|p| *p);
+            return Err(format!("服务已在运行 (port {})", active.unwrap_or(port)));
         }
     }
 
     let (actual_port, port_changed, port_reclaimed) = prepare_listen_port(port, allow_fallback)?;
 
-    let stderr_path = stderr_temp_path();
-    let _ = std::fs::remove_file(&stderr_path);
+    let handle = start_server(ServerOptions {
+        url: trimmed.clone(),
+        port: actual_port,
+        interval_min: REFRESH_INTERVAL_MIN,
+        rule_mode: RuleMode::Builtin,
+    })
+    .await
+    .map_err(|e| format!("启动内置代理服务失败: {e}"))?;
 
-    let mut child = sidecar::spawn_proxy(&state.runner, actual_port, &trimmed).map_err(|e| {
-        match &state.runner {
-            ProxyRunner::Sidecar(_) => format!("启动内置代理服务失败: {}", e),
-            ProxyRunner::NodeScript { .. } => format!(
-                "启动失败: {}（请安装 Node.js 18+，或运行 pnpm build:sidecar 构建内置服务）",
-                e
-            ),
-        }
-    })?;
-
-    if let Some(stderr) = child.stderr.take() {
-        let path = stderr_path.clone();
-        std::thread::spawn(move || {
-            let mut reader = std::io::BufReader::new(stderr);
-            let mut output = String::new();
-            let _ = reader.read_to_string(&mut output);
-            let _ = std::fs::write(&path, &output);
-        });
+    if !wait_for_listen(actual_port, Duration::from_secs(3)).await {
+        handle.shutdown().await;
+        return Err("服务启动超时 (3s)".to_string());
     }
 
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
-    let mut health_ok = false;
-
-    while std::time::Instant::now() < deadline {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                std::thread::sleep(Duration::from_millis(100));
-                let stderr_detail = std::fs::read_to_string(&stderr_path)
-                    .unwrap_or_default()
-                    .trim()
-                    .to_string();
-                let _ = std::fs::remove_file(&stderr_path);
-                let detail = if stderr_detail.is_empty() {
-                    String::new()
-                } else {
-                    format!(": {}", stderr_detail)
-                };
-                return Err(format!(
-                    "服务进程异常退出 (code={:?}){}",
-                    status.code(),
-                    detail
-                ));
-            }
-            Ok(None) => {}
-            Err(e) => return Err(format!("进程检查失败: {}", e)),
-        }
-
-        if health_check(actual_port).is_ok() {
-            health_ok = true;
-            break;
-        }
-
-        std::thread::sleep(Duration::from_millis(300));
+    {
+        let mut server_lock = state.server.lock().map_err(|e| e.to_string())?;
+        *server_lock = Some(handle);
     }
-
-    if !health_ok {
-        let _ = child.kill();
-        let _ = child.wait();
-        let _ = std::fs::remove_file(&stderr_path);
-        return Err(format!("服务启动超时 ({}s)", deadline.elapsed().as_secs()));
-    }
-
-    let _ = std::fs::remove_file(&stderr_path);
-    *child_lock = Some(child);
     if let Ok(mut port_lock) = state.active_port.lock() {
         *port_lock = Some(actual_port);
     }
@@ -584,7 +543,7 @@ pub fn start_service(
     }
 
     Ok(StartServiceResult {
-        base_url: format!("http://127.0.0.1:{}", actual_port),
+        base_url: format!("http://127.0.0.1:{actual_port}"),
         port: actual_port,
         requested_port: port,
         port_changed,
@@ -593,38 +552,24 @@ pub fn start_service(
 }
 
 pub fn get_service_status(state: &ClashServiceState) -> ServiceStatus {
-    let mut child_lock = match state.child.lock() {
-        Ok(c) => c,
-        Err(_) => return stopped_status(state),
-    };
+    let has_handle = state
+        .server
+        .lock()
+        .ok()
+        .map(|guard| guard.is_some())
+        .unwrap_or(false);
 
-    match child_lock.as_mut() {
-        Some(child) => match child.try_wait() {
-            Ok(Some(_)) => {
-                clear_running_state(state, &mut *child_lock);
-                stopped_status(state)
-            }
-            Ok(None) => {
-                let port = state.active_port.lock().ok().and_then(|p| *p);
-                if let Some(p) = port {
-                    if health_check(p).is_ok() {
-                        running_status(state)
-                    } else {
-                        clear_running_state(state, &mut *child_lock);
-                        stopped_status(state)
-                    }
-                } else {
-                    clear_running_state(state, &mut *child_lock);
-                    stopped_status(state)
-                }
-            }
-            Err(_) => {
-                clear_running_state(state, &mut *child_lock);
-                stopped_status(state)
-            }
-        },
-        None => stopped_status(state),
+    if !has_handle {
+        return stopped_status();
     }
+
+    let port = state.active_port.lock().ok().and_then(|p| *p);
+    if service_is_alive(has_handle, port) {
+        return running_status(state);
+    }
+
+    detach_stale_service(state);
+    stopped_status()
 }
 
 pub fn refresh_service(state: &ClashServiceState) -> Result<Value, String> {
@@ -637,40 +582,11 @@ pub fn refresh_service(state: &ClashServiceState) -> Result<Value, String> {
 }
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let resource_path = app
-        .path()
-        .resource_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."));
-
-    let bundle_path = resource_path.join("scripts/proxy-server.bundle.cjs");
-    let script_path = resource_path.join("scripts/proxy-server.mjs");
-
-    let script_path_str = if bundle_path.exists() {
-        bundle_path.to_string_lossy().to_string()
-    } else if script_path.exists() {
-        script_path.to_string_lossy().to_string()
-    } else {
-        let dev_bundle = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("scripts/proxy-server.bundle.cjs");
-        if dev_bundle.exists() {
-            dev_bundle.to_string_lossy().to_string()
-        } else {
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("scripts/proxy-server.mjs")
-                .to_string_lossy()
-                .to_string()
-        }
-    };
-
-    let runner = sidecar::resolve_runner(app.handle(), &script_path_str);
-
     app.manage(ClashServiceState {
-        child: Mutex::new(None),
+        server: Mutex::new(None),
         active_port: Mutex::new(None),
         active_url: Mutex::new(None),
-        runner,
     });
-
     Ok(())
 }
 
@@ -714,5 +630,25 @@ mod tests {
     #[test]
     fn scan_respects_max_bound() {
         assert_eq!(scan_next_free_port(65535, |_| true, 5), None);
+    }
+
+    #[test]
+    fn stopped_status_has_no_runner_label() {
+        assert!(stopped_status().runner_kind.is_empty());
+    }
+
+    #[test]
+    fn health_response_ok_matches_status_variants() {
+        assert!(health_response_ok("HTTP/1.1 200 OK\r\n\r\n"));
+        assert!(health_response_ok(r#"{"status":"ok","nodes":1}"#));
+        assert!(health_response_ok(r#"{"status": "ok", "nodes": 1}"#));
+        assert!(!health_response_ok(r#"{"status":"initializing"}"#));
+    }
+
+    #[test]
+    fn service_is_alive_requires_handle_and_listening_port() {
+        assert!(!service_is_alive(false, Some(25500)));
+        assert!(!service_is_alive(true, None));
+        assert!(!service_is_alive(true, Some(1)));
     }
 }

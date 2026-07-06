@@ -1,4 +1,7 @@
 use tauri::{Manager, Runtime};
+use tauri::window::Color;
+
+const WINDOW_BG: Color = Color(22, 23, 29, 255);
 
 pub fn show_main_window<R: Runtime>(app: &tauri::AppHandle<R>) {
     if let Some(window) = app.get_webview_window("main") {
@@ -29,31 +32,15 @@ pub fn toggle_main_window<R: Runtime>(app: &tauri::AppHandle<R>) {
     }
 }
 
-/// Apply platform-specific rounded window effects (macOS) and enable transparency support.
+/// Apply platform window chrome: solid background matching the frontend theme.
 pub fn init_main_window<R: Runtime, M: Manager<R>>(app: &M) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "主窗口未找到".to_string())?;
 
-    #[cfg(target_os = "macos")]
-    {
-        use tauri::window::{Effect, EffectState, EffectsBuilder};
-
-        window
-            .set_effects(
-                EffectsBuilder::new()
-                    .effect(Effect::HudWindow)
-                    .state(EffectState::FollowsWindowActiveState)
-                    .radius(24.0)
-                    .build(),
-            )
-            .map_err(|e| format!("窗口效果设置失败: {}", e))?;
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = window;
-    }
+    window
+        .set_background_color(Some(WINDOW_BG))
+        .map_err(|e| format!("窗口背景色设置失败: {e}"))?;
 
     Ok(())
 }

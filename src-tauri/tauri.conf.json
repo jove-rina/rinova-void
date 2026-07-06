@@ -1,16 +1,15 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Void",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.rinova.void",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "pnpm build:proxy && pnpm dev",
+    "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build:all"
   },
   "app": {
-    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Void",
@@ -19,8 +18,10 @@
         "height": 500,
         "resizable": false,
         "fullscreen": false,
-        "transparent": true,
+        "transparent": false,
         "decorations": false,
+        "shadow": false,
+        "backgroundColor": "#16171d",
         "center": true
       }
     ],
@@ -31,13 +32,6 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": [
-      "scripts/proxy-server.bundle.cjs",
-      "scripts/proxy-server.mjs"
-    ],
-    "externalBin": [
-      "binaries/proxy-server"
-    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

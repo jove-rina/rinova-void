@@ -64,19 +64,43 @@ onMounted(syncStatus)
       />
     </div>
 
-    <!-- 端口输入 + 占用提示与补救操作 -->
+    <!-- 端口输入 + 启停操作 + 占用提示 -->
     <div class="clash-tool__field">
       <label class="clash-tool__label" for="sub-port">端口</label>
-      <input
-        id="sub-port"
-        v-model.number="port"
-        type="number"
-        class="clash-tool__input clash-tool__input--port"
-        min="1024"
-        max="65535"
-        :disabled="isFormDisabled()"
-        @keyup.enter="handleStart"
-      />
+      <div class="clash-tool__port-row">
+        <input
+          id="sub-port"
+          v-model.number="port"
+          type="number"
+          class="clash-tool__input clash-tool__input--port"
+          min="1024"
+          max="65535"
+          :disabled="isFormDisabled()"
+          @keyup.enter="handleStart"
+        />
+        <div class="clash-tool__actions">
+          <template v-if="status === 'idle' || status === 'error'">
+            <button class="clash-tool__btn clash-tool__btn--start" @click="handleStart">
+              <Play :size="16" :stroke-width="2" />
+              启动服务
+            </button>
+          </template>
+          <div v-else-if="status === 'starting'" class="clash-tool__loading">
+            <Loader2 :size="16" :stroke-width="2" class="clash-tool__spin" />
+            启动中...
+          </div>
+          <div v-else-if="status === 'stopping'" class="clash-tool__loading">
+            <Loader2 :size="16" :stroke-width="2" class="clash-tool__spin" />
+            停止中...
+          </div>
+          <template v-else-if="status === 'running'">
+            <button class="clash-tool__btn clash-tool__btn--stop" @click="handleStop">
+              <Square :size="14" :stroke-width="2" fill="currentColor" />
+              停止服务
+            </button>
+          </template>
+        </div>
+      </div>
       <p v-if="portHint" class="clash-tool__port-hint">{{ portHint }}</p>
       <div v-if="portHint" class="clash-tool__port-actions">
         <button
@@ -95,36 +119,12 @@ onMounted(syncStatus)
       </div>
     </div>
 
-    <!-- 启停主操作区：按 status 切换按钮或 loading -->
-    <div class="clash-tool__actions">
-      <template v-if="status === 'idle' || status === 'error'">
-        <button class="clash-tool__btn clash-tool__btn--start" @click="handleStart">
-          <Play :size="16" :stroke-width="2" />
-          启动服务
-        </button>
-      </template>
-      <div v-else-if="status === 'starting'" class="clash-tool__loading">
-        <Loader2 :size="16" :stroke-width="2" class="clash-tool__spin" />
-        启动中...（最多 10 秒）
-      </div>
-      <div v-else-if="status === 'stopping'" class="clash-tool__loading">
-        <Loader2 :size="16" :stroke-width="2" class="clash-tool__spin" />
-        停止中...
-      </div>
-      <template v-else-if="status === 'running'">
-        <button class="clash-tool__btn clash-tool__btn--stop" @click="handleStop">
-          <Square :size="14" :stroke-width="2" fill="currentColor" />
-          停止服务
-        </button>
-      </template>
-    </div>
-
     <!-- 状态指示：圆点 + 文案 + runner 标签 -->
     <div class="clash-tool__status">
       <span class="clash-tool__status-dot" :class="`clash-tool__status-dot--${status}`"></span>
       {{ formatStatus(status) }}
-      <span v-if="runner" class="clash-tool__runner-tag">
-        {{ runner === 'sidecar' ? '内置' : 'Node' }}
+      <span v-if="status === 'running' && runner" class="clash-tool__runner-tag">
+        {{ runner === 'builtin' ? '内置' : runner }}
       </span>
     </div>
 
@@ -201,6 +201,13 @@ onMounted(syncStatus)
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+
+  &__port-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   &__port-hint {
@@ -283,8 +290,9 @@ onMounted(syncStatus)
 
   &__actions {
     display: flex;
+    align-items: center;
     gap: 8px;
-    margin-top: 4px;
+    flex-shrink: 0;
   }
 
   &__btn {

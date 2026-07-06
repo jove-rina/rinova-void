@@ -4,13 +4,13 @@ use serde_json::Value;
 use tauri::State;
 
 #[tauri::command]
-pub fn start_service(
+pub async fn start_service(
     url: String,
     port: u16,
     allow_fallback: Option<bool>,
     state: State<'_, ClashServiceState>,
 ) -> Result<crate::clash::StartServiceResult, String> {
-    crate::clash::start_service(&state, url, port, allow_fallback.unwrap_or(false))
+    crate::clash::start_service(&state, url, port, allow_fallback.unwrap_or(false)).await
 }
 
 #[tauri::command]
@@ -24,8 +24,8 @@ pub fn reclaim_port(port: u16) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn stop_service(state: State<'_, ClashServiceState>) -> Result<String, String> {
-    crate::clash::stop_service_impl(&state);
+pub async fn stop_service(state: State<'_, ClashServiceState>) -> Result<String, String> {
+    crate::clash::stop_service_impl(&state).await;
     Ok("服务已停止".to_string())
 }
 

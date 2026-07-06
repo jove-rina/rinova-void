@@ -10,7 +10,8 @@
  */
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRight, CircleDot } from '@lucide/vue'
+import { ChevronRight } from '@lucide/vue'
+import { version as appVersion } from '../../package.json'
 import { isClashServiceRunning } from '@/composables/useClashService'
 import { tools } from '@/tools/registry'
 
@@ -55,11 +56,10 @@ const openTool = (route: string): void => {
 
 <template>
   <div class="home">
-    <!-- 品牌区：Void 标题与副标题 -->
+    <!-- 品牌区：Void 标题与版本号 -->
     <div class="home__pocket">
-      <CircleDot :size="36" :stroke-width="1.5" class="home__icon" />
       <h1 class="home__title">Void</h1>
-      <p class="home__subtitle">虚空口袋</p>
+      <p class="home__version">v{{ appVersion }}</p>
     </div>
 
     <!-- 工具卡片列表：数据来自 registry -->
@@ -106,13 +106,6 @@ const openTool = (route: string): void => {
     margin-bottom: 20px;
   }
 
-  &__icon {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 6px;
-    color: var(--void-accent);
-  }
-
   &__title {
     font-size: 22px;
     font-weight: 700;
@@ -121,10 +114,12 @@ const openTool = (route: string): void => {
     text-transform: uppercase;
   }
 
-  &__subtitle {
-    font-size: 13px;
+  &__version {
+    font-size: 11px;
     color: var(--void-text-dim);
-    margin-top: 2px;
+    opacity: 0.5;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
   }
 
   &__tools {

@@ -30,11 +30,27 @@
   user-select: none;
 }
 
-/* 盒模型重置 */
+/** 盒模型重置 */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/** 原生下拉框暗色主题，与 App 背景一致 */
+select {
+  color-scheme: dark;
+  background-color: var(--void-bg);
+  color: var(--void-text);
+}
+
+select option {
+  background-color: var(--void-bg);
+  color: var(--void-text);
+}
+
+select:disabled {
+  opacity: 0.6;
 }
 
 html,

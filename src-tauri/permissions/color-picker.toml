@@ -1,0 +1,11 @@
+[[permission]]
+identifier = "allow-color-picker"
+description = "Color picker IPC commands"
+commands.allow = [
+  "list_picker_monitors",
+  "start_picker",
+  "refresh_picker",
+  "finish_picker",
+  "export_text_file",
+  "reveal_export_path",
+]

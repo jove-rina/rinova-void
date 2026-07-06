@@ -1,6 +1,9 @@
 mod clash;
+mod color_picker;
 mod commands;
+mod export;
 mod shortcut;
+mod tools;
 mod tray;
 mod window;
 
@@ -20,6 +23,9 @@ pub fn run() {
                 )?;
             }
             clash::setup(app)?;
+            if let Err(e) = color_picker::setup(app) {
+                log::warn!("取色器: {}", e);
+            }
             if let Err(e) = window::init_main_window(app.handle()) {
                 log::warn!("窗口初始化: {}", e);
             }
@@ -33,6 +39,14 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" && color_picker::is_picker_active(window.app_handle()) {
+                    api.prevent_close();
+                    let app = window.app_handle().clone();
+                    if let Err(e) = color_picker::cancel_picker(&app) {
+                        log::warn!("取色取消: {}", e);
+                    }
+                    return;
+                }
                 let _ = window.hide();
                 api.prevent_close();
             }
@@ -45,12 +59,19 @@ pub fn run() {
             commands::check_port,
             commands::reclaim_port,
             commands::init_window,
+            commands::list_picker_monitors,
+            commands::start_picker,
+            commands::refresh_picker,
+            commands::finish_picker,
+            commands::export_text_file,
+            commands::reveal_export_path,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             match event {
                 RunEvent::Exit => {
+                    let _ = color_picker::cancel_picker(app_handle);
                     let state: tauri::State<'_, clash::ClashServiceState> = app_handle.state();
                     clash::stop_service_blocking(&state);
                 }

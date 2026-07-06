@@ -1,6 +1,6 @@
 [package]
 name = "rinova-void"
-version = "0.2.0"
+version = "0.3.0"
 description = "Void — Your pocket from the void. A desktop toolbox."
 authors = ["Rina <jiuzhang.song+rina@gmail.com>"]
 license = "MIT"
@@ -26,6 +26,17 @@ tauri = { version = "2.11.3", features = [ "tray-icon"] }
 tauri-plugin-log = "2"
 rinova-proxy-sdk = "1.0.0"
 tokio = { version = "1", features = ["time"] }
+arboard = "3.6"
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_HiDpi",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"

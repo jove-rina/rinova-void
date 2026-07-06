@@ -1,121 +1,149 @@
 # Void
 
-A desktop toolbox — your pocket from the void.
+A lightweight desktop toolbox — your pocket from the void.
 
-Built with **Tauri 2** + **Vue 3** + **Vite 8** + **Less** + **TypeScript** + **Lucide** icons.
+Built with **Tauri 2** + **Vue 3** + **TypeScript**. Small footprint, lives in the system tray, and stays out of your way until you need it.
 
-## Prerequisites
+**Languages:** English · [简体中文](README.zh-CN.md)
+
+---
+
+## Highlights
+
+- **Tray-first** — Close the window to hide; Clash service keeps running in the background
+- **Global shortcut** — `Cmd+Shift+V` (macOS) / `Ctrl+Shift+V` (Windows/Linux) toggles show/hide
+- **Modular tools** — Each tool is a self-contained page; new tools plug in via a single registry
+- **No runtime Node.js** — The release app is a native Tauri bundle; Node is only needed for development
+- **Remembers your prefs** — Subscription URL, port, window position, and color history persist across restarts
+
+## Tools
+
+### Clash subscription service
+
+Run a local HTTP endpoint for [Clash Verge](https://github.com/clash-verge-rev/clash-verge-rev) — no need to paste your airport URL directly into the client.
+
+| | |
+|---|---|
+| **Endpoint** | `http://127.0.0.1:{port}/clash.yaml` |
+| **Runtime** | [`rinova-proxy-sdk`](https://crates.io/crates/rinova-proxy-sdk) embedded in-process (no sidecar) |
+| **Auto-refresh** | Upstream subscription refreshed every 60 minutes |
+| **Prefs** | Subscription URL and port are saved automatically |
+| **Port handling** | Reclaims ports held by stale Void processes; optional fallback when another app occupies the port |
+
+**Quick start**
+
+1. Open **Clash 订阅服务** from the home screen
+2. Paste your airport subscription URL and click **Start**
+3. Copy the local address (e.g. `http://127.0.0.1:25500/clash.yaml`)
+4. In Clash Verge, add a remote profile with that local URL — **not** the raw airport link
+
+If Clash reports `failed to fetch remote profile`, confirm Void is running and that `/clash.yaml` opens in a browser.
+
+### Color picker
+
+Pick colors from a screen snapshot, collect multiple swatches in one session, and manage a persistent palette.
+
+| | |
+|---|---|
+| **Platform** | Windows (GDI screen capture) |
+| **Session** | Snapshot-based picking with zoom, pan, and optional pixel grid magnifier |
+| **Multi-pick** | Left-click to add colors; **Esc** or **Exit** to finish the session |
+| **Formats** | HEX / RGB / HSL — copy any format from records |
+| **Records** | Up to 1,000 named entries in `localStorage`; duplicate HEX is detected |
+| **Export** | JSON, CSV, or Markdown to your Downloads folder |
+| **Displays** | Per-monitor or all-screens capture; DPI-aware rendering |
+| **Tray shortcut** | Tray menu → **取色器** opens the tool and starts picking automatically |
+
+**Quick start**
+
+1. Open **取色器** from the home screen (or use the tray menu)
+2. (Optional) Choose target display, magnifier level, and whether to hide Void while capturing
+3. Click **开始取色** → wait for the snapshot → click pixels to collect colors
+4. Use scroll wheel to zoom, middle/right button to pan; manage records in the side panel
+5. After exiting, rename, copy, export, or delete records from the tool page
+
+---
+
+## Installation
+
+### From source (development / local build)
+
+**Prerequisites**
 
 - **pnpm** 8+
-- **Rust** 1.77+ (Tauri backend + embedded [rinova-proxy-sdk](https://crates.io/crates/rinova-proxy-sdk))
-- **Node.js 18+** — frontend dev/build only (release app does not require Node at runtime)
-
-## Project structure
-
-```
-rinova-void/
-├── src/
-│   ├── api/              Typed Tauri invoke wrappers（箭头函数 + JSDoc）
-│   ├── composables/      Shared Vue composables（如 useClashService）
-│   ├── utils/            clash-prefs 等工具函数
-│   ├── components/       Shared UI（WindowHeader 拖拽/关闭）
-│   ├── views/            Pages（Home）
-│   ├── tools/            Tool modules + registry.ts（Lucide 图标注册）
-│   ├── router/           Vue Router（由 registry 自动生成路由）
-│   └── styles/           全局 Less + CSS 变量主题
-├── public/
-│   └── favicon.svg       Lucide CircleDot 品牌图标
-├── src-tauri/
-│   ├── permissions/      Tauri ACL permissions
-│   └── src/              Rust backend (clash, tray, window, shortcut)
-└── plan/                 工具与审查文档
-    ├── tool-clash-service.md
-    └── review/
-```
-
-## Development
+- **Rust** 1.77+
+- **Node.js 18+** — frontend dev/build only
 
 ```bash
+git clone <repo-url> rinova-void
+cd rinova-void
 pnpm install
-pnpm tauri:dev       # Vite + Tauri hot reload
+pnpm tauri:dev       # hot reload
 ```
 
-Release build:
+**Release build**
 
 ```bash
-pnpm tauri:build     # pnpm build → Tauri bundle (.msi / .dmg / …)
+pnpm tauri:build     # outputs .msi / .dmg / etc. under src-tauri/target/release/bundle/
 ```
 
-> **macOS build**: if `xcrun` fails:
+> **macOS:** If `xcrun` fails:
 > ```bash
 > DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer pnpm tauri:build
 > ```
 
-> **Windows dev**: Vite ignores `src-tauri/**` to avoid `EBUSY` on `app_lib.dll` during Rust rebuilds.
+> **Windows dev:** Vite ignores `src-tauri/**` to avoid `EBUSY` on `app_lib.dll` during Rust rebuilds.
 
-### Code signing (release)
+Signed release builds via GitHub Actions require Apple signing secrets — see [ARCHITECTURE.md](ARCHITECTURE.md#release--ci) for details. Local unsigned builds work without them.
 
-Set GitHub Actions secrets for signed release builds (`workflow_dispatch` → `release-build` job):
+---
 
-| Secret | Purpose |
-|--------|---------|
-| `APPLE_CERTIFICATE` | Base64 `.p12` (macOS) |
-| `APPLE_CERTIFICATE_PASSWORD` | Certificate password |
-| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: …` |
-| `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | Notarization (optional) |
+## Usage
 
-Local unsigned builds work without these secrets.
+### System tray
 
-## Frontend conventions
+| Action | Result |
+|--------|--------|
+| Close window (×) | Hides to tray; background services keep running |
+| Left-click tray icon | Toggle window show/hide |
+| Tray menu → tool name | Show window and navigate to that tool |
+| Tray menu → **退出** | Fully quit and stop Clash |
 
-| 约定 | 说明 |
-|------|------|
-| 函数风格 | 全部使用**箭头函数**（`const fn = () => {}`），含 composable 与 API 导出 |
-| 注释 | 模块头 + 类型/函数 JSDoc + 关键模板区块注释（中文） |
-| 图标 | [**@lucide/vue**](https://lucide.dev) 组件，禁止 emoji / 内联 SVG 作 UI 图标 |
-| 工具注册 | `src/tools/registry.ts` 中 `icon` 为 `LucideIcon` 组件，首页 `<component :is="tool.icon" />` |
-| 状态 | 工具逻辑放 composable（`useClashService`），页面只做展示与事件绑定 |
+### Global shortcut
 
-## System tray
+- **macOS:** `Cmd+Shift+V`
+- **Windows / Linux:** `Ctrl+Shift+V`
 
-- Close the window → **hides to menu bar / system tray** (Clash service keeps running)
-- Left-click tray icon → show/hide window
-- Tray menu → **退出 Void** to fully quit and stop Clash
+Toggles the main window. Window position is restored on next launch.
 
-## Global shortcut
+### Home screen
 
-- **macOS**: `Cmd+Shift+V` · **Windows/Linux**: `Ctrl+Shift+V` — toggle window show/hide
+The home screen lists all registered tools. A **运行中** badge appears when Clash service is active (polled every 5 seconds).
 
-Window position is restored on next launch (`tauri-plugin-window-state`).
+---
 
 ## Testing
 
 ```bash
-pnpm test          # Vitest (frontend utils)
-pnpm test:rust     # cargo test (clash SSRF / port scan / status helpers)
+pnpm test          # Vitest — frontend utils
+pnpm test:rust     # cargo test — clash SSRF / port scan / status helpers
 ```
 
-## Tools
+---
 
-### Clash 订阅服务
+## Documentation
 
-本地 HTTP 服务 exposing `/clash.yaml` for Clash Verge.
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Project structure, conventions, IPC, and backend modules |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [plan/tool-clash-service.md](plan/tool-clash-service.md) | Clash tool specification |
+| [plan/tool-color-picker.md](plan/tool-color-picker.md) | Color picker specification |
 
-- **Runtime**：[`rinova-proxy-sdk`](https://crates.io/crates/rinova-proxy-sdk) 内嵌于 Tauri 主进程，无需 Node / sidecar
-- **Prefs**：订阅 URL 与端口自动记忆（重启后恢复）
-- **Port**：遗留 Void 进程占端口时自动回收（不会 kill 当前进程）；被其他程序占用时可选手动换端口
-- **Clash 订阅**：在 Clash Verge 中添加 `http://127.0.0.1:{port}/clash.yaml`，不要直接填机场原始链接
-- 详见 [plan/tool-clash-service.md](plan/tool-clash-service.md)
+---
 
-## Tech stack
+## Tech stack (summary)
 
-| Layer | Choice |
-|-------|--------|
-| Framework | Vue 3 (Composition API, `<script setup>`) |
-| Icons | @lucide/vue |
-| Build | Vite 8 |
-| Styling | Less + CSS variables |
-| Language | TypeScript (strict) |
-| Desktop | Tauri 2 (frameless, system tray) |
-| Clash proxy | rinova-proxy-sdk (Rust, in-process) |
-| Routing | Vue Router (`createMemoryHistory`, registry-driven) |
+Vue 3 · Vite 8 · Less · TypeScript · Tauri 2 · Lucide icons · rinova-proxy-sdk (Rust)
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full breakdown.

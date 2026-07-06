@@ -15,14 +15,18 @@ pub fn setup<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), Box<dyn std::e
         let shortcut = Shortcut::new(Some(mods), Code::KeyV);
         let gs = app.global_shortcut();
 
+        let _ = gs.unregister(shortcut);
+
         gs.on_shortcut(shortcut, |app, _shortcut, event| {
             if event.state == ShortcutState::Pressed {
                 crate::window::toggle_main_window(app);
             }
         })?;
 
-        gs.register(shortcut)?;
-        log::info!("Global shortcut registered: Cmd/Ctrl+Shift+V");
+        match gs.register(shortcut) {
+            Ok(()) => log::info!("Global shortcut registered: Cmd/Ctrl+Shift+V"),
+            Err(e) => log::warn!("全局快捷键: {}", e),
+        }
     }
 
     Ok(())

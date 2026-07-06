@@ -1,0 +1,207 @@
+# Architecture
+
+Technical overview of the Void codebase — for contributors and maintainers.
+
+**Languages:** English · [简体中文](ARCHITECTURE.zh-CN.md)
+
+For user-facing features and usage, see [README.md](README.md).
+
+---
+
+## Overview
+
+Void is a **Tauri 2** desktop app with a **Vue 3** frontend. The main process owns system integration (tray, shortcuts, window lifecycle) and heavy work (Clash proxy, screen capture). The webview handles UI and local persistence (`localStorage`).
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Vue 3 frontend (src/)                                      │
+│  views · tools · composables · api · utils                  │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ Tauri invoke (IPC)
+┌──────────────────────────▼──────────────────────────────────┐
+│  Rust backend (src-tauri/src/)                              │
+│  commands · clash · color_picker · tray · window · shortcut │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Project structure
+
+```
+rinova-void/
+├── src/
+│   ├── api/              Typed Tauri invoke wrappers (arrow functions + JSDoc)
+│   ├── composables/      Shared Vue composables (useClashService, useColorPicker, …)
+│   ├── utils/            Helpers (clash-prefs, color-records, color-format, …)
+│   ├── components/       Shared UI (WindowHeader, AboutDialog)
+│   ├── views/            Pages (Home)
+│   ├── tools/            Tool modules + registry.ts
+│   ├── router/           Vue Router (routes auto-generated from registry)
+│   └── styles/           Global Less + CSS variable theme
+├── public/
+│   └── favicon.svg       Lucide CircleDot brand icon
+├── src-tauri/
+│   ├── permissions/      Tauri ACL capability files
+│   ├── icons/            App bundle icons
+│   └── src/
+│       ├── lib.rs        App entry, plugin setup, invoke handler
+│       ├── commands.rs   IPC command surface (thin wrappers)
+│       ├── clash.rs      Clash / rinova-proxy-sdk integration
+│       ├── color_picker.rs  Screen capture + picker session (Windows GDI)
+│       ├── export.rs     Write text files to Downloads
+│       ├── tools.rs      Tray menu tool list (mirror of frontend registry)
+│       ├── tray.rs       System tray icon and menu
+│       ├── window.rs     Main window init, show/hide, deep-link to tools
+│       └── shortcut.rs   Global shortcut registration
+└── plan/                 Tool specifications and review notes
+```
+
+---
+
+## Tool registry
+
+Tools are registered in a **single source of truth**: `src/tools/registry.ts`.
+
+Each entry defines `id`, `name`, `description`, Lucide `icon`, `route`, and a lazy `component` factory. The router (`src/router/index.ts`) expands this array into routes; the home page renders cards from the same list.
+
+**Adding a tool**
+
+1. Create `src/tools/<tool-id>/index.vue` (and subcomponents as needed)
+2. Append a `ToolDefinition` to `tools[]` in `registry.ts`
+3. If the tool should appear in the tray menu, add a matching entry in `src-tauri/src/tools.rs`
+4. Register any new Tauri commands in `commands.rs` + `lib.rs` invoke handler
+5. Add ACL permissions under `src-tauri/permissions/` if required
+
+Tool logic belongs in **composables**; pages handle layout and event binding only.
+
+---
+
+## Frontend conventions
+
+| Convention | Description |
+|------------|-------------|
+| Function style | Arrow functions only (`const fn = () => {}`), including composables and API exports |
+| Comments | Module header + JSDoc on types/functions + key template block comments (Chinese OK in code) |
+| Icons | [**@lucide/vue**](https://lucide.dev) components — no emoji or inline SVG for UI icons |
+| Tool registry | `icon` in `registry.ts` is a `LucideIcon`; Home uses `<component :is="tool.icon" />` |
+| Routing | `createMemoryHistory` — no URL bar; navigation via `router.push` |
+| State | Composables own tool state; `localStorage` for user prefs and records |
+
+---
+
+## IPC layer
+
+Frontend API modules in `src/api/` wrap `invoke()` calls with typed arguments and return values.
+
+| Command | Module | Backend |
+|---------|--------|---------|
+| `start_service`, `stop_service`, `get_service_status`, `refresh_service` | `api/clash-service.ts` | `clash.rs` |
+| `check_port`, `reclaim_port` | `api/clash-service.ts` | `clash.rs` |
+| `list_picker_monitors`, `start_picker`, `refresh_picker`, `finish_picker` | `api/color-picker.ts` | `color_picker.rs` |
+| `export_text_file`, `reveal_export_path` | `api/export.ts` | `export.rs` |
+| `init_window` | — | `window.rs` |
+
+Event flow for tools typically follows:
+
+```
+tool page → composable → api/*.ts → commands.rs → domain module
+```
+
+---
+
+## Backend modules
+
+### Clash (`clash.rs`)
+
+- Embeds [`rinova-proxy-sdk`](https://crates.io/crates/rinova-proxy-sdk) in the Tauri main process
+- Exposes `/clash.yaml`, `/health`, `/refresh` on a configurable local port
+- Port reclaim: probes `/health` on occupied ports to detect stale Void instances
+- Service state held in `ClashServiceState` managed by Tauri
+
+### Color picker (`color_picker.rs`)
+
+- **Windows only** — GDI screen capture → PNG base64 → frontend canvas sampling
+- Supports per-monitor and virtual-desktop (all screens) capture
+- Picker session: main window goes fullscreen; no separate overlay window
+- Cleanup on window close, app exit, or explicit cancel
+
+### Tray & window (`tray.rs`, `window.rs`)
+
+- Close button hides the main window (`prevent_close` + `hide()`)
+- Tray left-click toggles visibility; menu provides tool shortcuts and quit
+- `open_tool(id)` shows window, navigates via frontend event, and can queue auto-start (color picker)
+- Quit from tray stops Clash synchronously before exit
+
+### Shortcut (`shortcut.rs`)
+
+- Registers platform-specific toggle shortcut via `tauri-plugin-global-shortcut`
+
+---
+
+## Data persistence
+
+| Key / location | Content |
+|----------------|---------|
+| `void.clash.prefs` (`localStorage`) | Clash subscription URL, port |
+| `void.color.records` (`localStorage`) | Color picker records (max 1,000) |
+| Tauri window state plugin | Main window position/size |
+
+Rust-side Clash state (active URL, running port) lives in process memory and is queried via `get_service_status`.
+
+---
+
+## Tech stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Vue 3 (Composition API, `<script setup>`) |
+| Icons | @lucide/vue |
+| Build | Vite 8 |
+| Styling | Less + CSS variables |
+| Language | TypeScript (strict) |
+| Desktop | Tauri 2 (frameless, system tray) |
+| Plugins | window-state, global-shortcut, log (debug) |
+| Clash proxy | rinova-proxy-sdk (Rust, in-process) |
+| Screen capture | Windows GDI + `image` crate (color picker) |
+| Clipboard | arboard (Rust, if used by backend) |
+| Routing | Vue Router (`createMemoryHistory`, registry-driven) |
+| Tests | Vitest (frontend utils), cargo test (Rust) |
+
+---
+
+## Release & CI
+
+### Local build
+
+```bash
+pnpm tauri:build
+```
+
+Outputs platform bundles under `src-tauri/target/release/bundle/`.
+
+### GitHub Actions
+
+- **CI** (`.github/workflows/ci.yml`) — Vitest, `cargo test`, frontend typecheck/build, `cargo check` on Ubuntu and macOS
+- **Release** — `workflow_dispatch` with optional Apple code signing
+
+| Secret | Purpose |
+|--------|---------|
+| `APPLE_CERTIFICATE` | Base64 `.p12` (macOS) |
+| `APPLE_CERTIFICATE_PASSWORD` | Certificate password |
+| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: …` |
+| `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | Notarization (optional) |
+
+### Windows dev note
+
+`vite.config.ts` excludes `src-tauri/**` from file watching to prevent `EBUSY` errors when `app_lib.dll` is rebuilt during `tauri dev`.
+
+---
+
+## Security notes (Clash)
+
+- Subscription URL validation and SSRF guards live in `clash.rs` (see `cargo test`)
+- Local HTTP server binds to `127.0.0.1` only
+- CSP restricts frontend network access to localhost
+
+Tool-specific security and edge cases are documented in `plan/tool-clash-service.md` and `plan/tool-color-picker.md`.

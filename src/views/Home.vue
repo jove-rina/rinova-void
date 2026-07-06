@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Home.vue
- * Void 口袋首页 — 展示注册表中的工具卡片
+ * Void 首页 — 展示注册表中的工具卡片
  *
  * 功能：
  * - 从 registry 读取工具列表并渲染可点击卡片

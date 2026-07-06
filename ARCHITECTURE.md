@@ -12,6 +12,8 @@ For user-facing features and usage, see [README.md](README.md).
 
 Void is a **Tauri 2** desktop app with a **Vue 3** frontend. The main process owns system integration (tray, shortcuts, window lifecycle) and heavy work (Clash proxy, screen capture). The webview handles UI and local persistence (`localStorage`).
 
+**Supported platforms:** macOS · Windows (no official Linux release).
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Vue 3 frontend (src/)                                      │
@@ -186,14 +188,14 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 
 ### GitHub Actions
 
-- **CI** (`.github/workflows/ci.yml`) — Vitest, `cargo test`, frontend typecheck/build, `cargo check` on Ubuntu, macOS, and Windows; Rust build cache enabled. Ubuntu jobs run `scripts/ci-linux-deps.sh` (WebKit/GTK/glib per [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)) before any Rust step.
-- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.3.3`); builds macOS Apple Silicon + Intel, Linux (`ubuntu-22.04`, `libwebkit2gtk-4.0-dev`), and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release. Linux deps via the same `scripts/ci-linux-deps.sh` with distro-specific WebKit package. Apple signing secrets are injected only when `APPLE_CERTIFICATE` is configured (checked in a shell script, not step `if:`); otherwise macOS builds unsigned.
+- **CI** (`.github/workflows/ci.yml`) — Vitest on Ubuntu; `cargo test`, frontend typecheck/build, and `cargo check` on macOS and Windows; Rust build cache enabled
+- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.3.4`); builds macOS Apple Silicon + Intel and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release. Release body is extracted from the matching section in `CHANGELOG.md` (`scripts/extract-changelog.sh`). Apple signing secrets are injected only when `APPLE_CERTIFICATE` is configured (checked in a shell script, not step `if:`); otherwise macOS builds unsigned.
 
 **Release checklist**
 
 1. Bump version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
-2. Update `CHANGELOG.md` / `CHANGELOG.zh-CN.md`
-3. Merge to `main`, then tag and push: `git tag v0.3.3 && git push origin v0.3.3`
+2. Update `CHANGELOG.md` / `CHANGELOG.zh-CN.md` (Release body is taken from the English section for the tagged version)
+3. Merge to `main`, then tag and push: `git tag v0.3.4 && git push origin v0.3.4`
 
 | Secret | Purpose |
 |--------|---------|
@@ -232,7 +234,6 @@ Set `VOID_LOG=1` before launching the installed app. Rust logs are written to th
 |----------|------|
 | Windows | `%LOCALAPPDATA%\com.rinova.void\logs\void.log` |
 | macOS | `~/Library/Logs/com.rinova.void/void.log` |
-| Linux | `~/.local/share/com.rinova.void/logs/void.log` |
 
 PowerShell example:
 

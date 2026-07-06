@@ -4,6 +4,8 @@ A lightweight desktop toolbox — your pocket from the void.
 
 Built with **Tauri 2** + **Vue 3** + **TypeScript**. Small footprint, lives in the system tray, and stays out of your way until you need it.
 
+**Supported platforms:** macOS (Apple Silicon + Intel) · Windows
+
 **Languages:** English · [简体中文](README.zh-CN.md)
 
 ---
@@ -11,7 +13,7 @@ Built with **Tauri 2** + **Vue 3** + **TypeScript**. Small footprint, lives in t
 ## Highlights
 
 - **Tray-first** — Close the window to hide; Clash service keeps running in the background
-- **Global shortcut** — `Cmd+Shift+V` (macOS) / `Ctrl+Shift+V` (Windows/Linux) toggles show/hide
+- **Global shortcut** — `Cmd+Shift+V` (macOS) / `Ctrl+Shift+V` (Windows) toggles show/hide
 - **Modular tools** — Each tool is a self-contained page; new tools plug in via a single registry
 - **No runtime Node.js** — The release app is a native Tauri bundle; Node is only needed for development
 - **Remembers your prefs** — Subscription URL, port, window position, and color history persist across restarts
@@ -69,7 +71,7 @@ Pick colors from a screen snapshot, collect multiple swatches in one session, an
 
 ### From GitHub Releases
 
-Pre-built installers for Windows, Linux, and macOS (Apple Silicon + Intel) are published on the [Releases](https://github.com/jove-rina/rinova-void/releases) page. Download the bundle for your platform (`.msi` / `.exe`, `.deb` / `.AppImage`, `.dmg`).
+Pre-built installers for **macOS** (Apple Silicon + Intel) and **Windows** are published on the [Releases](https://github.com/jove-rina/rinova-void/releases) page (`.dmg` / `.msi`).
 
 ### From source (development / local build)
 
@@ -89,7 +91,7 @@ pnpm tauri:dev       # hot reload
 **Release build**
 
 ```bash
-pnpm tauri:build     # outputs .msi / .dmg / etc. under src-tauri/target/release/bundle/
+pnpm tauri:build     # outputs .msi / .dmg under src-tauri/target/release/bundle/
 ```
 
 > **macOS:** If `xcrun` fails:
@@ -103,7 +105,7 @@ pnpm tauri:build     # outputs .msi / .dmg / etc. under src-tauri/target/release
 
 Signed release builds via GitHub Actions require Apple signing secrets — see [ARCHITECTURE.md](ARCHITECTURE.md#release--ci). Local unsigned builds work without them.
 
-To cut a new release: bump version, update the changelog, merge to `main`, then `git tag v0.3.3 && git push origin v0.3.3`.
+To cut a new release: bump version, update the changelog, merge to `main`, then `git tag v0.3.4 && git push origin v0.3.4`. The Release workflow fills the GitHub Release body from the matching `CHANGELOG.md` section.
 
 ---
 
@@ -121,7 +123,7 @@ To cut a new release: bump version, update the changelog, merge to `main`, then 
 ### Global shortcut
 
 - **macOS:** `Cmd+Shift+V`
-- **Windows / Linux:** `Ctrl+Shift+V`
+- **Windows:** `Ctrl+Shift+V`
 
 Toggles the main window. Window position is restored on next launch.
 

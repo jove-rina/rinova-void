@@ -20,22 +20,8 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: bash scripts/ci-linux-deps.sh
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
-
       - name: Install dependencies
         run: pnpm install
-
-      - name: Rust unit tests
-        run: pnpm test:rust
 
       - name: Vitest
         run: pnpm test
@@ -44,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -60,10 +46,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: bash scripts/ci-linux-deps.sh
-
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -71,6 +53,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Rust unit tests
+        if: runner.os == 'macOS'
+        run: pnpm test:rust
 
       - name: Frontend typecheck & build
         run: pnpm build

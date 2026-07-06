@@ -1,11 +1,11 @@
-#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 use tauri::Runtime;
 
-/// Register global shortcut: Cmd+Shift+V (macOS) / Ctrl+Shift+V (Windows & Linux).
+/// Register global shortcut: Cmd+Shift+V (macOS) / Ctrl+Shift+V (Windows).
 pub fn setup<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         #[cfg(target_os = "macos")]
         let mods = Modifiers::SUPER | Modifiers::SHIFT;

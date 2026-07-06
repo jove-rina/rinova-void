@@ -1,6 +1,6 @@
 # 取色器工具
 
-> 状态：**v0.3.3 已发布** · 入口：首页卡片 / 工具页 / **托盘菜单「取色」**
+> 状态：**v0.3.4** · 入口：首页卡片 / 工具页 / **托盘菜单「取色」**
 
 ## 功能概览
 
@@ -319,7 +319,7 @@ struct PickerState {
 |------|------|------|
 | Windows | GDI（`platform/windows.rs`） | ✅ |
 | macOS | CGDisplay + 窗口列表；截屏前 hide；work area 布局 | ✅ |
-| Linux | 未实现（`platform/unsupported.rs`） | ⬜ |
+| Linux | 不支持（无官方发行；`platform/unsupported.rs` 占位） | — |
 
 macOS 首次截屏需在 **系统设置 → 隐私与安全性 → 屏幕录制** 中允许 Void。权限说明见 `src-tauri/Info.plist`。
 

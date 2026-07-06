@@ -12,13 +12,20 @@ Void 的所有重要变更均记录于此。
 
 ---
 
+## [0.3.4] - 2026-07-07
+
+### 变更
+
+- **平台支持** — 取消 Linux 官方支持；Release 与 CI 仅构建 **macOS** 与 **Windows**。打包目标限定为 `dmg` / `app` / `msi` / `nsis`；移除 Linux CI runner 与 `scripts/ci-linux-deps.sh`
+- **GitHub Release** — Release 正文由 `scripts/extract-changelog.sh` 从 `CHANGELOG.md` 提取对应 tag 版本条目（Release 页附简体中文 CHANGELOG 链接）
+
+---
+
 ## [0.3.3] - 2026-07-07
 
 ### 修复
 
 - **GitHub Release workflow** — Apple 签名配置不再在 step 的 `if:` 中使用 `secrets`（GitHub Actions 不支持）；改为在 shell 脚本内判断证书是否存在
-- **CI（Linux）** — Rust 编译前通过 `scripts/ci-linux-deps.sh` 安装 Tauri 系统库；修复 Ubuntu runner 上 `glib-2.0` pkg-config 找不到的问题
-- **Release（Linux）** — Ubuntu 22.04 使用 `libwebkit2gtk-4.0-dev`（4.1 适用于 24.04+）；统一安装脚本并显式安装 `libglib2.0-dev` / `libgtk-3-dev`
 - **跨平台构建** — 取色器：非 macOS 路径导入 `tauri::Manager`（`window_layout.rs`）；`capture.rs` 中 `PickerState` 仅 macOS 分支导入
 - **Windows 构建** — `clash.rs` 补充 `std::process::Stdio` 导入，供 `taskkill` 丢弃 stdout/stderr
 
@@ -41,7 +48,7 @@ Void 的所有重要变更均记录于此。
 ### 新增
 
 - **macOS 取色器** — 基于屏幕快照取色，需屏幕录制权限；可选「截屏时隐藏应用」，避免快照中出现 Void 界面
-- **GitHub Release 自动化** — 推送 tag `v*`（如 `v0.3.1`）自动构建 macOS（Apple Silicon + Intel）、Linux、Windows 并发布 GitHub Release
+- **GitHub Release 自动化** — 推送 tag `v*`（如 `v0.3.1`）自动构建 macOS（Apple Silicon + Intel）与 Windows 并发布 GitHub Release
 
 ### 变更
 
@@ -107,7 +114,8 @@ Void 的所有重要变更均记录于此。
 - 无边框主窗口与自定义拖拽标题栏
 - CI — Vitest、Rust 单元测试、多平台构建检查
 
-[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.3.3...HEAD
+[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/jove-rina/rinova-void/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/jove-rina/rinova-void/compare/v0.3.0...v0.3.1

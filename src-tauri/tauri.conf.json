@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Void",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "identifier": "com.rinova.void",
   "build": {
     "frontendDist": "../dist",
@@ -31,7 +31,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["dmg", "app", "msi", "nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

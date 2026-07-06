@@ -4,6 +4,8 @@
 
 基于 **Tauri 2** + **Vue 3** + **TypeScript** 构建。体积小、常驻系统托盘，需要时再唤出。
 
+**支持平台：** macOS（Apple Silicon + Intel）· Windows
+
 **语言：** [English](README.md) · 简体中文
 
 ---
@@ -11,7 +13,7 @@
 ## 特色
 
 - **托盘优先** — 关闭窗口即隐藏；Clash 服务可在后台继续运行
-- **全局快捷键** — macOS `Cmd+Shift+V` / Windows·Linux `Ctrl+Shift+V` 切换显示/隐藏
+- **全局快捷键** — macOS `Cmd+Shift+V` / Windows `Ctrl+Shift+V` 切换显示/隐藏
 - **模块化工具** — 每个工具独立成页；通过统一注册表扩展，无需改路由
 - **运行时无 Node.js** — 发布版为原生 Tauri 安装包；Node 仅用于开发构建
 - **偏好记忆** — 订阅 URL、端口、窗口位置、取色记录等跨重启保留
@@ -69,7 +71,7 @@
 
 ### 从 GitHub Releases 安装
 
-Windows、Linux、macOS（Apple Silicon + Intel）预编译包见 [Releases](https://github.com/jove-rina/rinova-void/releases) 页面，按平台下载对应安装包（`.msi` / `.exe`、`.deb` / `.AppImage`、`.dmg`）。
+**macOS**（Apple Silicon + Intel）与 **Windows** 预编译包见 [Releases](https://github.com/jove-rina/rinova-void/releases) 页面（`.dmg` / `.msi`）。
 
 ### 从源码（开发 / 本地构建）
 
@@ -103,7 +105,7 @@ pnpm tauri:build     # 输出 .msi / .dmg 等，位于 src-tauri/target/release/
 
 GitHub Actions 签名发布需配置 Apple 证书 Secrets — 详见 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md#发布与-ci)。本地未签名构建无需配置。
 
-发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.3.3 && git push origin v0.3.3`。
+发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.3.4 && git push origin v0.3.4`。Release workflow 会自动从 `CHANGELOG.md` 提取对应版本内容作为 Release 正文。
 
 ---
 
@@ -121,7 +123,7 @@ GitHub Actions 签名发布需配置 Apple 证书 Secrets — 详见 [ARCHITECTU
 ### 全局快捷键
 
 - **macOS：** `Cmd+Shift+V`
-- **Windows / Linux：** `Ctrl+Shift+V`
+- **Windows：** `Ctrl+Shift+V`
 
 切换主窗口显示/隐藏；下次启动时恢复窗口位置。
 

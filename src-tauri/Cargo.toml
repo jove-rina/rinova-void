@@ -1,6 +1,6 @@
 [package]
 name = "rinova-void"
-version = "0.3.3"
+version = "0.3.4"
 description = "Void — Your pocket from the void. A desktop toolbox."
 authors = ["Rina <jiuzhang.song+rina@gmail.com>"]
 license = "MIT"

@@ -54,7 +54,7 @@ fn open_webview_devtools<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     );
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub fn setup_devtools_shortcut<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -80,7 +80,7 @@ pub fn setup_devtools_shortcut<R: tauri::Runtime>(
     Ok(())
 }
 
-#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn setup_devtools_shortcut<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
 ) -> Result<(), Box<dyn std::error::Error>> {

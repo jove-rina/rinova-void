@@ -1,6 +1,7 @@
 mod clash;
 mod color_picker;
 mod commands;
+mod debug;
 mod export;
 mod shortcut;
 mod tools;
@@ -15,13 +16,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            debug::setup_logging(app.handle())?;
             clash::setup(app)?;
             if let Err(e) = color_picker::setup(app) {
                 log::warn!("取色器: {}", e);
@@ -34,6 +29,9 @@ pub fn run() {
             }
             if let Err(e) = shortcut::setup(app.handle()) {
                 log::warn!("全局快捷键: {}", e);
+            }
+            if let Err(e) = debug::setup_devtools_shortcut(app.handle()) {
+                log::warn!("DevTools 快捷键: {}", e);
             }
             Ok(())
         })

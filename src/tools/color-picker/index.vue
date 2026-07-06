@@ -45,6 +45,7 @@ const {
   runSuccessAction,
   handleSessionRadiusChange,
   handleExitPick,
+  handleSnapshotLoadError,
 } = useColorPicker()
 
 const recordsExpanded = ref(false)
@@ -191,6 +192,7 @@ watch(pendingColorPickerAutoStart, (pending) => {
     @export="handleExportRecords"
     @refresh="handleSessionRefresh"
     @update:radius="handleSessionRadiusChange"
+    @load-error="handleSnapshotLoadError"
     @exit="handleExitPick"
   />
 </template>

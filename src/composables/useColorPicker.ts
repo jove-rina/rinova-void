@@ -59,7 +59,6 @@ export const useColorPicker = () => {
   let toastTimer: ReturnType<typeof setTimeout> | undefined
 
   const persistRecords = (): void => {
-    records.value = trimColorRecords(records.value)
     saveColorRecords(records.value)
   }
 
@@ -282,6 +281,11 @@ export const useColorPicker = () => {
     }
   }
 
+  const handleSnapshotLoadError = (message: string): void => {
+    showError(message)
+    void handleExitPick()
+  }
+
   onMounted(() => {
     void loadMonitors()
   })
@@ -322,5 +326,6 @@ export const useColorPicker = () => {
     handleExportRecords,
     runSuccessAction,
     handleExitPick,
+    handleSnapshotLoadError,
   }
 }

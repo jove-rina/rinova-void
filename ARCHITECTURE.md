@@ -198,6 +198,59 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 
 ---
 
+## Production debugging
+
+Release builds differ from `pnpm tauri:dev` (CSP enforcement, no Vite HMR, optimized Rust). Use these workflows to reproduce and inspect production issues.
+
+### Debug bundle (recommended)
+
+Build an installable **debug** package — same layout as release, but with debug symbols and `debug_assertions`:
+
+```bash
+pnpm tauri:build:debug
+```
+
+Output: `src-tauri/target/debug/bundle/` (`.msi` on Windows).
+
+### File logging
+
+Set `VOID_LOG=1` before launching the installed app. Rust logs are written to the OS log directory:
+
+| Platform | Path |
+|----------|------|
+| Windows | `%LOCALAPPDATA%\com.rinova.void\logs\void.log` |
+| macOS | `~/Library/Logs/com.rinova.void/void.log` |
+| Linux | `~/.local/share/com.rinova.void/logs/void.log` |
+
+PowerShell example:
+
+```powershell
+$env:VOID_LOG = "1"
+& "C:\Program Files\Void\Void.exe"
+```
+
+### DevTools in production
+
+Set `VOID_DEVTOOLS=1`, launch the app, then press **Ctrl+Shift+Alt+I** to open WebView DevTools (Console / Network / breakpoints).
+
+```powershell
+$env:VOID_DEVTOOLS = "1"
+$env:VOID_LOG = "1"
+& "C:\Program Files\Void\Void.exe"
+```
+
+DevTools are only registered when the env var is set — normal users are unaffected.
+
+### Typical release-only pitfalls
+
+| Symptom | Cause |
+|---------|-------|
+| Snapshot stuck on loading | CSP blocked `data:` image URLs (fixed: `createImageBitmap`) |
+| Freeze on pick | `watch(records)` + reassign in persist handler caused infinite reactive loop |
+| IPC silent failure | Missing ACL permission — check Rust log with `VOID_LOG=1` |
+
+---
+
 ## Security notes (Clash)
 
 - Subscription URL validation and SSRF guards live in `clash.rs` (see `cargo test`)

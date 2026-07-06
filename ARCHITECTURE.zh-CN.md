@@ -198,6 +198,59 @@ pnpm tauri:build
 
 ---
 
+## 生产环境调试
+
+发布版与 `pnpm tauri:dev` 行为不同（CSP 严格生效、无 Vite HMR、Rust 优化编译）。排查安装包问题时建议使用以下方式。
+
+### Debug 安装包（推荐）
+
+构建可安装的 **debug** 包 — 布局与 release 相同，但带调试符号与 `debug_assertions`：
+
+```bash
+pnpm tauri:build:debug
+```
+
+产物：`src-tauri/target/debug/bundle/`（Windows 为 `.msi`）。
+
+### 文件日志
+
+启动前设置 `VOID_LOG=1`，Rust 日志写入 OS 日志目录：
+
+| 平台 | 路径 |
+|------|------|
+| Windows | `%LOCALAPPDATA%\com.rinova.void\logs\void.log` |
+| macOS | `~/Library/Logs/com.rinova.void/void.log` |
+| Linux | `~/.local/share/com.rinova.void/logs/void.log` |
+
+PowerShell 示例：
+
+```powershell
+$env:VOID_LOG = "1"
+& "C:\Program Files\Void\Void.exe"
+```
+
+### 生产环境 DevTools
+
+设置 `VOID_DEVTOOLS=1` 后启动应用，按 **Ctrl+Shift+Alt+I** 打开 WebView DevTools（Console / Network / 断点）。
+
+```powershell
+$env:VOID_DEVTOOLS = "1"
+$env:VOID_LOG = "1"
+& "C:\Program Files\Void\Void.exe"
+```
+
+仅当环境变量开启时才注册 DevTools 快捷键，普通用户不受影响。
+
+### 常见 release 特有问题
+
+| 现象 | 原因 |
+|------|------|
+| 快照一直加载 | CSP 拦截 `data:` 图片 URL（已修复：改用 `createImageBitmap`） |
+| 点击取色卡死 | `watch(records)` 与 persist 中重复赋值导致无限 reactive 循环 |
+| IPC 静默失败 | ACL 权限缺失 — 用 `VOID_LOG=1` 查看 Rust 日志 |
+
+---
+
 ## 安全说明（Clash）
 
 - 订阅 URL 校验与 SSRF 防护在 `clash.rs` 中（见 `cargo test`）

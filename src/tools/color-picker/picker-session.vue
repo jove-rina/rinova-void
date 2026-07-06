@@ -3,7 +3,7 @@
  * picker-session.vue
  * 截屏取色 — 左侧快照视口，右侧操作面板（多点取色）
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Loader2, Minus, Plus, RefreshCw, Scan, X } from '@lucide/vue'
 import {
@@ -15,6 +15,7 @@ import {
 import ColorRecordsSection from './color-records-section.vue'
 import {
   clientToCanvasPixel,
+  decodeBase64PngToImageBitmap,
   fitCanvasTransform,
   sampleCanvasPixel,
   zoomAtPoint,
@@ -40,6 +41,7 @@ const emit = defineEmits<{
   export: [format: ColorRecordExportFormat]
   refresh: [monitorIndex: number, captureAll: boolean, radius: number]
   'update:radius': [radius: number]
+  'load-error': [message: string]
   exit: []
 }>()
 
@@ -307,32 +309,45 @@ watch(activeRadius, (radius) => {
   }
 })
 
-const loadSnapshot = (session: StartPickerResult): void => {
+const loadSnapshot = async (session: StartPickerResult): Promise<void> => {
+  await nextTick()
   const source = sourceCanvasRef.value
   const viewport = viewportRef.value
-  if (!source || !viewport) return
+  if (!source || !viewport) {
+    emit('load-error', '快照视图未就绪')
+    return
+  }
 
   const generation = ++loadGeneration
   ready.value = false
-  const img = new Image()
-  img.onload = () => {
-    if (generation !== loadGeneration) return
 
-    source.width = img.width
-    source.height = img.height
+  try {
+    const bitmap = await decodeBase64PngToImageBitmap(session.image_base64)
+    if (generation !== loadGeneration) {
+      bitmap.close()
+      return
+    }
+
+    source.width = bitmap.width
+    source.height = bitmap.height
     sourceCtx = source.getContext('2d', { willReadFrequently: true })
-    if (!sourceCtx) return
-    sourceCtx.drawImage(img, 0, 0)
+    if (!sourceCtx) {
+      bitmap.close()
+      emit('load-error', '无法创建 Canvas 上下文')
+      return
+    }
+
+    sourceCtx.drawImage(bitmap, 0, 0)
+    bitmap.close()
     ready.value = true
     fitToView()
     const rect = viewport.getBoundingClientRect()
     sampleAtClient(rect.left + rect.width / 2, rect.top + rect.height / 2)
-  }
-  img.onerror = () => {
+  } catch {
     if (generation !== loadGeneration) return
     ready.value = false
+    emit('load-error', '快照加载失败')
   }
-  img.src = `data:image/png;base64,${session.image_base64}`
 }
 
 const requestRefresh = (): void => {
@@ -363,7 +378,7 @@ watch(
 watch(
   () => props.session.image_base64,
   () => {
-    loadSnapshot(props.session)
+    void loadSnapshot(props.session)
   },
 )
 
@@ -379,7 +394,7 @@ onMounted(async () => {
     resizeObserver.observe(viewport)
   }
 
-  loadSnapshot(props.session)
+  await loadSnapshot(props.session)
 })
 
 onUnmounted(() => {

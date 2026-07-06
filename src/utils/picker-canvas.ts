@@ -19,6 +19,27 @@ const readRgb = (data: Uint8ClampedArray, idx: number): [number, number, number]
   data[idx + 2] ?? 0,
 ]
 
+/** Base64 PNG → bytes（供测试与解码复用） */
+export const decodeBase64ToBytes = (base64: string): Uint8Array => {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+/**
+ * 将 Rust 返回的 PNG base64 解码为 ImageBitmap。
+ * 避免 `data:` URL — 生产构建 CSP 默认禁止 img-src data:，会导致快照永远加载失败。
+ */
+export const decodeBase64PngToImageBitmap = async (base64: string): Promise<ImageBitmap> => {
+  const bytes = decodeBase64ToBytes(base64)
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+  const blob = new Blob([buffer], { type: 'image/png' })
+  return createImageBitmap(blob)
+}
+
 /** 视口坐标 → Canvas 像素（含平移缩放） */
 export const clientToCanvasPixel = (
   clientX: number,

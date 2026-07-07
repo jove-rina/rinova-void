@@ -12,6 +12,8 @@ For user-facing features and usage, see [README.md](README.md).
 
 Void is a **Tauri 2** desktop app with a **Vue 3** frontend. The main process owns system integration (tray, shortcuts, window lifecycle) and heavy work (Clash proxy, screen capture). The webview handles UI and local persistence (`localStorage`).
 
+**Supported platforms:** macOS · Windows (no official Linux release).
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Vue 3 frontend (src/)                                      │
@@ -48,7 +50,9 @@ rinova-void/
 │       ├── lib.rs        App entry, plugin setup, invoke handler
 │       ├── commands.rs   IPC command surface (thin wrappers)
 │       ├── clash.rs      Clash / rinova-proxy-sdk integration
-│       ├── color_picker.rs  Screen capture + picker session (Windows GDI)
+│       ├── color_picker/  屏幕截屏与取色会话（Windows GDI · macOS CGDisplay）
+│       │   ├── platform/  windows · macos · unsupported
+│       │   └── macos/     hide、layout、TCC、窗口列表截屏
 │       ├── export.rs     Write text files to Downloads
 │       ├── tools.rs      Tray menu tool list (mirror of frontend registry)
 │       ├── tray.rs       System tray icon and menu
@@ -98,7 +102,7 @@ Frontend API modules in `src/api/` wrap `invoke()` calls with typed arguments an
 |---------|--------|---------|
 | `start_service`, `stop_service`, `get_service_status`, `refresh_service` | `api/clash-service.ts` | `clash.rs` |
 | `check_port`, `reclaim_port` | `api/clash-service.ts` | `clash.rs` |
-| `list_picker_monitors`, `start_picker`, `refresh_picker`, `finish_picker` | `api/color-picker.ts` | `color_picker.rs` |
+| `list_picker_monitors`, `start_picker`, `refresh_picker`, `finish_picker` | `api/color-picker.ts` | `color_picker/` |
 | `export_text_file`, `reveal_export_path` | `api/export.ts` | `export.rs` |
 | `init_window` | — | `window.rs` |
 
@@ -119,11 +123,13 @@ tool page → composable → api/*.ts → commands.rs → domain module
 - Port reclaim: probes `/health` on occupied ports to detect stale Void instances
 - Service state held in `ClashServiceState` managed by Tauri
 
-### Color picker (`color_picker.rs`)
+### Color picker (`color_picker/`)
 
-- **Windows only** — GDI screen capture → PNG base64 → frontend canvas sampling
+- **Windows** — GDI screen capture → PNG base64 → frontend canvas sampling
+- **macOS** — `CGWindowListCreateImageFromArray` (exclude own windows) with `CGDisplay` fallback; optional hide-before-capture; work-area layout instead of native fullscreen
 - Supports per-monitor and virtual-desktop (all screens) capture
-- Picker session: main window goes fullscreen; no separate overlay window
+- Picker session in main window; no separate overlay WebView
+- macOS requires Screen Recording TCC; dev builds use `scripts/macos-dev-runner.sh` for stable signing — see [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md)
 - Cleanup on window close, app exit, or explicit cancel
 
 ### Tray & window (`tray.rs`, `window.rs`)
@@ -163,7 +169,7 @@ Rust-side Clash state (active URL, running port) lives in process memory and is 
 | Desktop | Tauri 2 (frameless, system tray) |
 | Plugins | window-state, global-shortcut, log (debug) |
 | Clash proxy | rinova-proxy-sdk (Rust, in-process) |
-| Screen capture | Windows GDI + `image` crate (color picker) |
+| Screen capture | Windows GDI · macOS CoreGraphics + window list (`color_picker/`) |
 | Clipboard | arboard (Rust, if used by backend) |
 | Routing | Vue Router (`createMemoryHistory`, registry-driven) |
 | Tests | Vitest (frontend utils), cargo test (Rust) |
@@ -182,8 +188,14 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 
 ### GitHub Actions
 
-- **CI** (`.github/workflows/ci.yml`) — Vitest, `cargo test`, frontend typecheck/build, `cargo check` on Ubuntu and macOS
-- **Release** — `workflow_dispatch` with optional Apple code signing
+- **CI** (`.github/workflows/ci.yml`) — Vitest on Ubuntu; `cargo test`, frontend typecheck/build, and `cargo check` on macOS and Windows; Rust build cache enabled
+- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.3.4`); builds macOS Apple Silicon + Intel and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release. Release body is extracted from the matching section in `CHANGELOG.md` (`scripts/extract-changelog.sh`). Apple signing secrets are injected only when `APPLE_CERTIFICATE` is configured (checked in a shell script, not step `if:`); otherwise macOS builds unsigned.
+
+**Release checklist**
+
+1. Bump version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
+2. Update `CHANGELOG.md` / `CHANGELOG.zh-CN.md` (Release body is taken from the English section for the tagged version)
+3. Merge to `main`, then tag and push: `git tag v0.3.4 && git push origin v0.3.4`
 
 | Secret | Purpose |
 |--------|---------|
@@ -191,6 +203,8 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 | `APPLE_CERTIFICATE_PASSWORD` | Certificate password |
 | `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: …` |
 | `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | Notarization (optional) |
+
+Repository **Settings → Actions → General → Workflow permissions** must allow **Read and write** for release uploads.
 
 ### Windows dev note
 
@@ -220,7 +234,6 @@ Set `VOID_LOG=1` before launching the installed app. Rust logs are written to th
 |----------|------|
 | Windows | `%LOCALAPPDATA%\com.rinova.void\logs\void.log` |
 | macOS | `~/Library/Logs/com.rinova.void/void.log` |
-| Linux | `~/.local/share/com.rinova.void/logs/void.log` |
 
 PowerShell example:
 
@@ -257,4 +270,4 @@ DevTools are only registered when the env var is set — normal users are unaffe
 - Local HTTP server binds to `127.0.0.1` only
 - CSP restricts frontend network access to localhost
 
-Tool-specific security and edge cases are documented in `plan/tool-clash-service.md` and `plan/tool-color-picker.md`.
+Tool-specific security and edge cases are documented in `plan/tool-clash-service.md`, `plan/tool-color-picker.md`, and `plan/macos-color-picker-hide-app.md`.

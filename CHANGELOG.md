@@ -12,6 +12,51 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ---
 
+## [0.3.4] - 2026-07-07
+
+### Changed
+
+- **Platform support** — dropped Linux; official releases and CI builds target **macOS** and **Windows** only. Bundle targets limited to `dmg` / `app` / `msi` / `nsis`; removed Linux CI runner and `scripts/ci-linux-deps.sh`
+- **GitHub Release** — release body is extracted from `CHANGELOG.md` for the tagged version via `scripts/extract-changelog.sh`
+
+---
+
+## [0.3.3] - 2026-07-07
+
+### Fixed
+
+- **GitHub Release workflow** — Apple signing configuration no longer uses `secrets` in step `if:` conditions (invalid in GitHub Actions); checks certificate presence in a shell script instead
+- **Cross-platform build** — color picker: import `tauri::Manager` on non-macOS (`window_layout.rs`); gate `PickerState` import to macOS-only code in `capture.rs`
+- **Windows build** — import `std::process::Stdio` in `clash.rs` for `taskkill` stdout/stderr suppression
+
+---
+
+## [0.3.2] - 2026-07-07
+
+### Fixed
+
+- **GitHub Release (macOS)** — only inject `APPLE_*` signing secrets when configured; avoids `security import` failure and allows unsigned macOS bundles when no Apple Developer certificate is set
+
+### Changed
+
+- Color picker capture / window layout minor backend adjustments
+
+---
+
+## [0.3.1] - 2026-07-07
+
+### Added
+
+- **Color picker on macOS** — snapshot-based picking with Screen Recording permission; optional hide-app capture so Void UI does not appear in the snapshot
+- **GitHub Release automation** — push tag `v*` (e.g. `v0.3.1`) builds macOS (Apple Silicon + Intel) and Windows and publishes a GitHub Release
+
+### Changed
+
+- Color picker backend refactored into platform modules (`color_picker/macos/`, `platform/`)
+- CI — Windows added to build matrix; Rust build cache enabled; release builds moved to `.github/workflows/release.yml`
+
+---
+
 ## [0.3.0] - 2026-07-06
 
 ### Added
@@ -69,7 +114,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Frameless main window with custom drag header
 - CI — Vitest, Rust unit tests, multi-platform build checks
 
-[Unreleased]: https://github.com/jove-rina/rinova-void/compare/0.3.0...HEAD
-[0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...0.3.0
+[Unreleased]: https://github.com/jove-rina/rinova-void/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/jove-rina/rinova-void/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/jove-rina/rinova-void/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...v0.3.0
 [0.2.0]: https://github.com/jove-rina/rinova-void/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/jove-rina/rinova-void/releases/tag/0.1.0

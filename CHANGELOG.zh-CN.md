@@ -12,6 +12,51 @@ Void 的所有重要变更均记录于此。
 
 ---
 
+## [0.3.4] - 2026-07-07
+
+### 变更
+
+- **平台支持** — 取消 Linux 官方支持；Release 与 CI 仅构建 **macOS** 与 **Windows**。打包目标限定为 `dmg` / `app` / `msi` / `nsis`；移除 Linux CI runner 与 `scripts/ci-linux-deps.sh`
+- **GitHub Release** — Release 正文由 `scripts/extract-changelog.sh` 从 `CHANGELOG.md` 提取对应 tag 版本条目（Release 页附简体中文 CHANGELOG 链接）
+
+---
+
+## [0.3.3] - 2026-07-07
+
+### 修复
+
+- **GitHub Release workflow** — Apple 签名配置不再在 step 的 `if:` 中使用 `secrets`（GitHub Actions 不支持）；改为在 shell 脚本内判断证书是否存在
+- **跨平台构建** — 取色器：非 macOS 路径导入 `tauri::Manager`（`window_layout.rs`）；`capture.rs` 中 `PickerState` 仅 macOS 分支导入
+- **Windows 构建** — `clash.rs` 补充 `std::process::Stdio` 导入，供 `taskkill` 丢弃 stdout/stderr
+
+---
+
+## [0.3.2] - 2026-07-07
+
+### 修复
+
+- **GitHub Release（macOS）** — 仅在配置了 Apple 签名 Secret 时才注入 `APPLE_*` 环境变量；避免 `security import` 失败，未配置开发者证书时可成功产出未签名 macOS 安装包
+
+### 变更
+
+- 取色器截屏 / 窗口布局后端小幅调整
+
+---
+
+## [0.3.1] - 2026-07-07
+
+### 新增
+
+- **macOS 取色器** — 基于屏幕快照取色，需屏幕录制权限；可选「截屏时隐藏应用」，避免快照中出现 Void 界面
+- **GitHub Release 自动化** — 推送 tag `v*`（如 `v0.3.1`）自动构建 macOS（Apple Silicon + Intel）与 Windows 并发布 GitHub Release
+
+### 变更
+
+- 取色器后端重构为平台模块（`color_picker/macos/`、`platform/`）
+- CI — 构建矩阵增加 Windows；启用 Rust 构建缓存；Release 构建迁移至 `.github/workflows/release.yml`
+
+---
+
 ## [0.3.0] - 2026-07-06
 
 ### 新增
@@ -69,7 +114,11 @@ Void 的所有重要变更均记录于此。
 - 无边框主窗口与自定义拖拽标题栏
 - CI — Vitest、Rust 单元测试、多平台构建检查
 
-[未发布]: https://github.com/jove-rina/rinova-void/compare/0.3.0...HEAD
-[0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...0.3.0
+[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/jove-rina/rinova-void/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/jove-rina/rinova-void/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/jove-rina/rinova-void/compare/0.2.0...v0.3.0
 [0.2.0]: https://github.com/jove-rina/rinova-void/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/jove-rina/rinova-void/releases/tag/0.1.0

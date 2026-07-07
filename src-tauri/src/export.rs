@@ -52,7 +52,7 @@ fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
             .arg(path)
             .spawn()
             .map_err(|e| format!("打开目录失败: {e}"))?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -67,7 +67,6 @@ fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
             .arg(dir)
             .spawn()
             .map_err(|e| format!("打开目录失败: {e}"))?;
+        Ok(())
     }
-
-    Ok(())
 }

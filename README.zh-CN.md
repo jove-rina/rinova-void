@@ -4,6 +4,8 @@
 
 基于 **Tauri 2** + **Vue 3** + **TypeScript** 构建。体积小、常驻系统托盘，需要时再唤出。
 
+**支持平台：** macOS（Apple Silicon + Intel）· Windows
+
 **语言：** [English](README.md) · 简体中文
 
 ---
@@ -11,7 +13,7 @@
 ## 特色
 
 - **托盘优先** — 关闭窗口即隐藏；Clash 服务可在后台继续运行
-- **全局快捷键** — macOS `Cmd+Shift+V` / Windows·Linux `Ctrl+Shift+V` 切换显示/隐藏
+- **全局快捷键** — macOS `Cmd+Shift+V` / Windows `Ctrl+Shift+V` 切换显示/隐藏
 - **模块化工具** — 每个工具独立成页；通过统一注册表扩展，无需改路由
 - **运行时无 Node.js** — 发布版为原生 Tauri 安装包；Node 仅用于开发构建
 - **偏好记忆** — 订阅 URL、端口、窗口位置、取色记录等跨重启保留
@@ -45,13 +47,14 @@
 
 | | |
 |---|---|
-| **平台** | Windows（GDI 截屏） |
+| **平台** | Windows（GDI）· macOS（屏幕录制权限；截屏时隐藏应用 — 见 [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md)） |
 | **会话** | 快照取色，支持缩放、平移与可选像素网格放大镜 |
 | **多点取色** | 左键追加颜色；**Esc** 或 **退出取色** 结束会话 |
 | **格式** | HEX / RGB / HSL — 可从记录中复制任意格式 |
 | **记录** | 最多 1,000 条命名记录（`localStorage`）；重复 HEX 会提示已存在 |
 | **导出** | JSON、CSV、Markdown，保存至 Downloads 文件夹 |
 | **显示器** | 可选单屏或全部屏幕；PerMonitorV2 DPI 感知 |
+| **Toast** | 底部成功/错误提示；鼠标悬停时暂停自动关闭 |
 | **托盘入口** | 托盘菜单 → **取色器** 打开工具页并自动开始取色 |
 
 **快速上手**
@@ -65,6 +68,10 @@
 ---
 
 ## 安装
+
+### 从 GitHub Releases 安装
+
+**macOS**（Apple Silicon + Intel）与 **Windows** 预编译包见 [Releases](https://github.com/jove-rina/rinova-void/releases) 页面（`.dmg` / `.msi`）。
 
 ### 从源码（开发 / 本地构建）
 
@@ -92,9 +99,13 @@ pnpm tauri:build     # 输出 .msi / .dmg 等，位于 src-tauri/target/release/
 > DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer pnpm tauri:build
 > ```
 
+> **macOS 取色器（开发）：** `pnpm tauri:dev` 会通过 `scripts/macos-dev-runner.sh` 用 Apple Development 证书签名，避免 Sequoia 上每次重编译后屏幕录制权限失效。请先在 Xcode 登录 Apple ID。改签名后重置 TCC：`tccutil reset ScreenCapture com.rinova.void`
+
 > **Windows 开发：** Vite 忽略 `src-tauri/**`，避免 Rust 重编译时 `app_lib.dll` 出现 `EBUSY`。
 
 GitHub Actions 签名发布需配置 Apple 证书 Secrets — 详见 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md#发布与-ci)。本地未签名构建无需配置。
+
+发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.3.4 && git push origin v0.3.4`。Release workflow 会自动从 `CHANGELOG.md` 提取对应版本内容作为 Release 正文。
 
 ---
 
@@ -112,7 +123,7 @@ GitHub Actions 签名发布需配置 Apple 证书 Secrets — 详见 [ARCHITECTU
 ### 全局快捷键
 
 - **macOS：** `Cmd+Shift+V`
-- **Windows / Linux：** `Ctrl+Shift+V`
+- **Windows：** `Ctrl+Shift+V`
 
 切换主窗口显示/隐藏；下次启动时恢复窗口位置。
 
@@ -139,6 +150,7 @@ pnpm test:rust     # cargo test — clash SSRF / 端口扫描 / 状态辅助
 | [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md) | 版本历史 |
 | [plan/tool-clash-service.md](plan/tool-clash-service.md) | Clash 工具规格 |
 | [plan/tool-color-picker.md](plan/tool-color-picker.md) | 取色器规格 |
+| [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md) | macOS「截屏时隐藏应用」实现与踩坑 |
 
 ---
 

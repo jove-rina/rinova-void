@@ -3,7 +3,7 @@
  * 取色器 — 截屏快照 + 多色取色 + 记录持久化
  */
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window'
 import {
   finishPicker,
   listPickerMonitors,
@@ -25,9 +25,11 @@ import {
   type ColorRecordExportFormat,
 } from '@/utils/color-records'
 import { toHsl, toRgb } from '@/utils/color-format'
+import { isMacOs } from '@/utils/platform'
 
 const TOAST_MS = 2500
 const TOAST_ACTION_MS = 8000
+const TOAST_LEAVE_MS = 2000
 
 export interface ToastAction {
   label: string
@@ -57,6 +59,49 @@ export const useColorPicker = () => {
   const sessionPickIds = ref<string[]>([])
 
   let toastTimer: ReturnType<typeof setTimeout> | undefined
+  let activeToastKind: 'success' | 'error' | null = null
+
+  const dismissToast = (): void => {
+    if (activeToastKind === 'success') {
+      successMsg.value = ''
+    } else if (activeToastKind === 'error') {
+      errorMsg.value = ''
+    }
+    activeToastKind = null
+    successAction.value = null
+  }
+
+  const scheduleToastDismiss = (delayMs: number): void => {
+    if (toastTimer) {
+      clearTimeout(toastTimer)
+    }
+    toastTimer = setTimeout(() => {
+      toastTimer = undefined
+      dismissToast()
+    }, delayMs)
+  }
+
+  const clearToast = (): void => {
+    if (toastTimer) {
+      clearTimeout(toastTimer)
+      toastTimer = undefined
+    }
+    activeToastKind = null
+    successAction.value = null
+  }
+
+  const handleToastMouseEnter = (): void => {
+    if (!activeToastKind) return
+    if (toastTimer) {
+      clearTimeout(toastTimer)
+      toastTimer = undefined
+    }
+  }
+
+  const handleToastMouseLeave = (): void => {
+    if (!activeToastKind) return
+    scheduleToastDismiss(TOAST_LEAVE_MS)
+  }
 
   const persistRecords = (): void => {
     saveColorRecords(records.value)
@@ -64,20 +109,13 @@ export const useColorPicker = () => {
 
   watch(records, persistRecords, { deep: true })
 
-  const clearToast = (): void => {
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-      toastTimer = undefined
-    }
-    successAction.value = null
-  }
-
   const showToast = (
     kind: 'success' | 'error',
     msg: string,
     action?: ToastAction,
   ): void => {
     clearToast()
+    activeToastKind = kind
     if (kind === 'success') {
       successMsg.value = msg
       errorMsg.value = ''
@@ -88,14 +126,7 @@ export const useColorPicker = () => {
       successAction.value = null
     }
     const duration = kind === 'success' && action ? TOAST_ACTION_MS : TOAST_MS
-    toastTimer = setTimeout(() => {
-      if (kind === 'success') {
-        successMsg.value = ''
-      } else {
-        errorMsg.value = ''
-      }
-      successAction.value = null
-    }, duration)
+    scheduleToastDismiss(duration)
   }
 
   const showSuccess = (msg: string, action?: ToastAction): void => {
@@ -119,10 +150,13 @@ export const useColorPicker = () => {
   const cleanupSession = async (): Promise<void> => {
     session.value = null
     sessionPickIds.value = []
-    try {
-      await getCurrentWindow().setFullscreen(false)
-    } catch {
-      // 非 Tauri 环境
+    // macOS 窗口几何由 Rust finish_picker 恢复；Windows 仍退出原生全屏
+    if (!isMacOs()) {
+      try {
+        await getCurrentWindow().setFullscreen(false)
+      } catch {
+        // 非 Tauri 环境
+      }
     }
   }
 
@@ -131,8 +165,24 @@ export const useColorPicker = () => {
     try {
       const list = await listPickerMonitors()
       monitors.value = list
-      const primary = list.find((m) => m.is_primary)
-      selectedMonitorIndex.value = primary?.index ?? list[0]?.index ?? 0
+
+      let defaultIndex = list.find((m) => m.is_primary)?.index ?? list[0]?.index ?? 0
+      try {
+        const current = await currentMonitor()
+        if (current) {
+          const matched = list.find(
+            (m) =>
+              m.x === current.position.x &&
+              m.y === current.position.y &&
+              m.width === current.size.width &&
+              m.height === current.size.height,
+          )
+          if (matched) defaultIndex = matched.index
+        }
+      } catch {
+        // 浏览器预览
+      }
+      selectedMonitorIndex.value = defaultIndex
     } catch (e) {
       showError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -325,6 +375,8 @@ export const useColorPicker = () => {
     handleCopyRecordHsl,
     handleExportRecords,
     runSuccessAction,
+    handleToastMouseEnter,
+    handleToastMouseLeave,
     handleExitPick,
     handleSnapshotLoadError,
   }

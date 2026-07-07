@@ -27,6 +27,7 @@ pub fn run() {
             if let Err(e) = tray::setup(app.handle()) {
                 log::warn!("系统托盘: {}", e);
             }
+            window::repair_main_window_on_launch(app.handle());
             if let Err(e) = shortcut::setup(app.handle()) {
                 log::warn!("全局快捷键: {}", e);
             }
@@ -46,6 +47,7 @@ pub fn run() {
                     return;
                 }
                 let _ = window.hide();
+                crate::tray::sync_toggle_menu_label(window.app_handle());
                 api.prevent_close();
             }
         })

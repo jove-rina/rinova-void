@@ -78,6 +78,26 @@ export const fitCanvasTransform = (
   }
 }
 
+/** 适应窗口时的 scale 为 100% 基准 */
+export const formatDisplayZoomPercent = (scale: number, baseScale: number): string => {
+  if (baseScale <= 0) return '100%'
+  return `${Math.round((scale / baseScale) * 100)}%`
+}
+
+export const parseDisplayZoomPercent = (value: string): number | null => {
+  const parsed = Number.parseFloat(value.replace(/%/g, '').trim())
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+export const displayPercentToScale = (percent: number, baseScale: number): number =>
+  baseScale * (percent / 100)
+
+/** 相对 100%（适应窗口）的可缩放范围：10%–800% */
+export const zoomScaleLimits = (baseScale: number): { min: number; max: number } => ({
+  min: baseScale * 0.1,
+  max: baseScale * 8,
+})
+
 /** 以光标为中心缩放 */
 export const zoomAtPoint = (
   transform: CanvasTransform,

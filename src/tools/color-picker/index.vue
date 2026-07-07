@@ -43,6 +43,8 @@ const {
   handleCopyRecordHsl,
   handleExportRecords,
   runSuccessAction,
+  handleToastMouseEnter,
+  handleToastMouseLeave,
   handleSessionRadiusChange,
   handleExitPick,
   handleSnapshotLoadError,
@@ -139,14 +141,20 @@ watch(pendingColorPickerAutoStart, (pending) => {
   <Teleport to="body">
     <Transition name="color-tool-toast">
       <div
-        v-if="successMsg"
-        class="color-tool__toast color-tool__toast--success"
-        :class="{ 'color-tool__toast--action': successAction }"
-        role="status"
-        aria-live="polite"
+        v-if="successMsg || errorMsg"
+        class="color-tool__toast"
+        :class="{
+          'color-tool__toast--success': !!successMsg,
+          'color-tool__toast--error': !!errorMsg,
+          'color-tool__toast--action': !!successAction,
+        }"
+        :role="errorMsg ? 'alert' : 'status'"
+        :aria-live="errorMsg ? 'assertive' : 'polite'"
+        @mouseenter="handleToastMouseEnter"
+        @mouseleave="handleToastMouseLeave"
       >
-        <Check :size="16" :stroke-width="2.5" />
-        <span class="color-tool__toast-text">{{ successMsg }}</span>
+        <Check v-if="successMsg" :size="16" :stroke-width="2.5" />
+        <span class="color-tool__toast-text">{{ successMsg || errorMsg }}</span>
         <button
           v-if="successAction"
           type="button"
@@ -155,16 +163,6 @@ watch(pendingColorPickerAutoStart, (pending) => {
         >
           {{ successAction.label }}
         </button>
-      </div>
-    </Transition>
-    <Transition name="color-tool-toast">
-      <div
-        v-if="errorMsg"
-        class="color-tool__toast color-tool__toast--error"
-        role="alert"
-        aria-live="assertive"
-      >
-        <span>{{ errorMsg }}</span>
       </div>
     </Transition>
   </Teleport>
@@ -320,12 +318,8 @@ watch(pendingColorPickerAutoStart, (pending) => {
     font-weight: 500;
     line-height: 1.4;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-    pointer-events: none;
+    pointer-events: auto;
     transform: translateX(-50%);
-
-    &--action {
-      pointer-events: auto;
-    }
 
     &--success {
       background: rgba(22, 23, 29, 0.96);

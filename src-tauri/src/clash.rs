@@ -1,6 +1,8 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::process::{Command, Stdio};
+use std::process::Command;
+#[cfg(windows)]
+use std::process::Stdio;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 

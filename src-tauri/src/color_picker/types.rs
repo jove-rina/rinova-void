@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use image::{ImageBuffer, RgbaImage};
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "macos")]
 use tauri::{PhysicalPosition, PhysicalSize};
 
 /// 放大镜最大半径（对应前端最大网格 17×17）。
@@ -31,10 +32,12 @@ pub struct PickerState {
     pub(crate) is_active: Mutex<bool>,
     pub(crate) session: Mutex<Option<PickerSession>>,
     /// macOS：取色开始前保存的窗口几何，结束时恢复（Windows 不使用）。
+    #[cfg(target_os = "macos")]
     pub(crate) saved_layout: Mutex<Option<SavedWindowLayout>>,
 }
 
 /// macOS 取色窗口布局前的几何快照。
+#[cfg(target_os = "macos")]
 pub(crate) struct SavedWindowLayout {
     pub position: PhysicalPosition<i32>,
     pub size: PhysicalSize<u32>,
@@ -47,6 +50,7 @@ impl Default for PickerState {
         Self {
             is_active: Mutex::new(false),
             session: Mutex::new(None),
+            #[cfg(target_os = "macos")]
             saved_layout: Mutex::new(None),
         }
     }

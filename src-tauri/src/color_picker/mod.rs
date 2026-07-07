@@ -41,6 +41,7 @@ mod tests {
         PickerState {
             is_active: std::sync::Mutex::new(true),
             session: std::sync::Mutex::new(Some(PickerSession { radius: 0 })),
+            #[cfg(target_os = "macos")]
             saved_layout: std::sync::Mutex::new(None),
         }
     }

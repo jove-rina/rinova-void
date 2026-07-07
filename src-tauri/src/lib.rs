@@ -64,6 +64,8 @@ pub fn run() {
             commands::refresh_picker,
             commands::finish_picker,
             commands::export_text_file,
+            commands::export_binary_file,
+            commands::export_rgba_image,
             commands::reveal_export_path,
         ])
         .build(tauri::generate_context!())

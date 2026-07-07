@@ -96,6 +96,27 @@ pub fn export_text_file(
 }
 
 #[tauri::command]
+pub fn export_binary_file(
+    app: AppHandle,
+    filename: String,
+    content: Vec<u8>,
+) -> Result<String, String> {
+    crate::export::export_binary_to_downloads(&app, &filename, &content)
+}
+
+#[tauri::command]
+pub fn export_rgba_image(
+    app: AppHandle,
+    filename: String,
+    format: String,
+    width: u32,
+    height: u32,
+    rgba: Vec<u8>,
+) -> Result<String, String> {
+    crate::export::export_rgba_image(&app, &filename, &format, width, height, rgba)
+}
+
+#[tauri::command]
 pub fn reveal_export_path(path: String) -> Result<(), String> {
     crate::export::reveal_export_path(&path)
 }

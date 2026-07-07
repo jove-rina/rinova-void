@@ -8,7 +8,7 @@
  * 3. 无需修改 router/index.ts（路由由本表自动生成）
  */
 import type { Component } from 'vue'
-import { Pipette, Shield, type LucideIcon } from '@lucide/vue'
+import { Image, Pipette, Shield, type LucideIcon } from '@lucide/vue'
 
 /**
  * 单个 Void 工具的元数据与懒加载入口。
@@ -48,5 +48,13 @@ export const tools: ToolDefinition[] = [
     icon: Pipette,
     route: '/tool/color-picker',
     component: () => import('@/tools/color-picker/index.vue'),
+  },
+  {
+    id: 'image-editor',
+    name: '图片编辑器',
+    description: '上传图片，缩放与框选裁剪',
+    icon: Image,
+    route: '/tool/image-editor',
+    component: () => import('@/tools/image-editor/index.vue'),
   },
 ]

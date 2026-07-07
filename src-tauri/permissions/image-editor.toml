@@ -1,0 +1,8 @@
+[[permission]]
+identifier = "allow-image-editor"
+description = "Image editor IPC commands"
+commands.allow = [
+  "export_binary_file",
+  "export_rgba_image",
+  "reveal_export_path",
+]

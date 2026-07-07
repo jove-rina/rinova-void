@@ -1,3 +1,4 @@
+mod image_editor;
 mod clash;
 mod color_picker;
 mod commands;
@@ -15,12 +16,15 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             debug::setup_logging(app.handle())?;
             clash::setup(app)?;
             if let Err(e) = color_picker::setup(app) {
                 log::warn!("取色器: {}", e);
             }
+            app.manage(image_editor::ImageEditorState::new());
+            app.manage(image_editor::ExportBufferState::new());
             if let Err(e) = window::init_main_window(app.handle()) {
                 log::warn!("窗口初始化: {}", e);
             }
@@ -38,7 +42,10 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" && color_picker::is_picker_active(window.app_handle()) {
+                if window.label() != "main" {
+                    return;
+                }
+                if color_picker::is_picker_active(window.app_handle()) {
                     api.prevent_close();
                     let app = window.app_handle().clone();
                     if let Err(e) = color_picker::cancel_picker(&app) {
@@ -65,7 +72,26 @@ pub fn run() {
             commands::finish_picker,
             commands::export_text_file,
             commands::export_binary_file,
+            commands::export_binary_file_base64,
+            commands::export_binary_base64_to_path,
+            commands::convert_image_base64_to_path,
             commands::export_rgba_image,
+            commands::convert_image_base64,
+            commands::read_image_file,
+            commands::begin_editor_session,
+            commands::append_editor_session_image,
+            commands::commit_editor_session,
+            commands::take_image_editor_session,
+            commands::save_image_editor_project,
+            commands::list_image_editor_projects,
+            commands::load_image_editor_project,
+            commands::delete_image_editor_project,
+            commands::open_image_editor_window,
+            commands::begin_export_buffer,
+            commands::append_export_base64,
+            commands::cancel_export_buffer,
+            commands::finish_export_binary,
+            commands::finish_convert_export,
             commands::reveal_export_path,
         ])
         .build(tauri::generate_context!())

@@ -65,6 +65,30 @@ Pick colors from a screen snapshot, collect multiple swatches in one session, an
 4. Use scroll wheel to zoom, middle/right button to pan; manage records in the side panel
 5. After exiting, rename, copy, export, or delete records from the tool page
 
+### Image editor
+
+Multi-image cropping, project persistence, and multi-format export in a dedicated full-screen editor window.
+
+| | |
+|---|---|
+| **Entry** | Home card → multi-image upload queue; open saved projects |
+| **Editor window** | Dedicated `image-editor` WebView filling the current display work area |
+| **Crop** | Square / rectangle / circle / ellipse; move and resize selection; chain crop with reset to original |
+| **View** | Scroll zoom, pan, fit-to-window; same canvas interaction as the color picker |
+| **Export** | General single file / thumbnail batch / ICO batch; user picks save path or directory |
+| **Projects** | Save edit state to app data; resume from the entry page |
+| **Toast** | “Show in folder” action after successful export |
+
+**Quick start**
+
+1. Open **图片编辑器** from the home screen and upload one or more images
+2. Click **开始编辑** → enter the dedicated editor window
+3. Draw a selection → **确认裁剪**; chain crops or **恢复** to the original
+4. Choose export mode and format → **导出**
+5. **保存** the project to resume later; on **退出编辑**, optionally save and exit
+
+See [plan/tool-image-editor.md](plan/tool-image-editor.md).
+
 ---
 
 ## Installation
@@ -105,7 +129,7 @@ pnpm tauri:build     # outputs .msi / .dmg under src-tauri/target/release/bundle
 
 Signed release builds via GitHub Actions require Apple signing secrets — see [ARCHITECTURE.md](ARCHITECTURE.md#release--ci). Local unsigned builds work without them.
 
-To cut a new release: bump version, update the changelog, merge to `main`, then `git tag v0.3.4 && git push origin v0.3.4`. The Release workflow fills the GitHub Release body from the matching `CHANGELOG.md` section.
+To cut a new release: bump version, update the changelog, merge to `main`, then `git tag v0.4.0 && git push origin v0.4.0`. The Release workflow fills the GitHub Release body from the matching `CHANGELOG.md` section.
 
 ---
 
@@ -150,6 +174,7 @@ pnpm test:rust     # cargo test — clash SSRF / port scan / status helpers
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 | [plan/tool-clash-service.md](plan/tool-clash-service.md) | Clash tool specification |
 | [plan/tool-color-picker.md](plan/tool-color-picker.md) | Color picker specification |
+| [plan/tool-image-editor.md](plan/tool-image-editor.md) | Image editor specification |
 | [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md) | macOS hide-app capture: APIs, pitfalls, debugging |
 
 ---

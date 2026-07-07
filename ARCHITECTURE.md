@@ -36,7 +36,7 @@ rinova-void/
 │   ├── api/              Typed Tauri invoke wrappers (arrow functions + JSDoc)
 │   ├── composables/      Shared Vue composables (useClashService, useColorPicker, …)
 │   ├── utils/            Helpers (clash-prefs, color-records, color-format, …)
-│   ├── components/       Shared UI (WindowHeader, AboutDialog)
+│   ├── components/       Shared UI (WindowHeader, ToolEntryLayout, VoidButton, VoidToast, AboutDialog)
 │   ├── views/            Pages (Home)
 │   ├── tools/            Tool modules + registry.ts
 │   ├── router/           Vue Router (routes auto-generated from registry)
@@ -50,10 +50,11 @@ rinova-void/
 │       ├── lib.rs        App entry, plugin setup, invoke handler
 │       ├── commands.rs   IPC command surface (thin wrappers)
 │       ├── clash.rs      Clash / rinova-proxy-sdk integration
-│       ├── color_picker/  屏幕截屏与取色会话（Windows GDI · macOS CGDisplay）
+│       ├── color_picker/  Screen capture and picker sessions (Windows GDI · macOS CGDisplay)
 │       │   ├── platform/  windows · macos · unsupported
-│       │   └── macos/     hide、layout、TCC、窗口列表截屏
-│       ├── export.rs     Write text files to Downloads
+│       │   └── macos/     hide, layout, TCC, window-list capture
+│       ├── image_editor/  Image editor session, project persistence, dedicated window, chunked export
+│       ├── export.rs     Binary/image write, reveal, Downloads text export
 │       ├── tools.rs      Tray menu tool list (mirror of frontend registry)
 │       ├── tray.rs       System tray icon and menu
 │       ├── window.rs     Main window init, show/hide, deep-link to tools
@@ -104,6 +105,7 @@ Frontend API modules in `src/api/` wrap `invoke()` calls with typed arguments an
 | `check_port`, `reclaim_port` | `api/clash-service.ts` | `clash.rs` |
 | `list_picker_monitors`, `start_picker`, `refresh_picker`, `finish_picker` | `api/color-picker.ts` | `color_picker/` |
 | `export_text_file`, `reveal_export_path` | `api/export.ts` | `export.rs` |
+| `begin_editor_session`, `take_image_editor_session`, `open_image_editor_window`, etc. | `api/image-editor.ts` | `image_editor/` |
 | `init_window` | — | `window.rs` |
 
 Event flow for tools typically follows:
@@ -132,6 +134,14 @@ tool page → composable → api/*.ts → commands.rs → domain module
 - macOS requires Screen Recording TCC; dev builds use `scripts/macos-dev-runner.sh` for stable signing — see [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md)
 - Cleanup on window close, app exit, or explicit cancel
 
+### Image editor (`image_editor/`)
+
+- Main-window entry uploads multiple images → batch IPC session → `open_image_editor_window` opens a dedicated WebView (`label: image-editor`)
+- `App.vue` routes the editor window to `session.vue`; `take_image_editor_session` retrieves data once
+- Project JSON stored under `{app_data}/image-editor/projects/`; `image-editor-projects-changed` refreshes the entry list
+- Export: user picks path/directory; large images use chunked `export_buffer`; format conversion via `export.rs` + `image` crate
+- Spec: [plan/tool-image-editor.md](plan/tool-image-editor.md)
+
 ### Tray & window (`tray.rs`, `window.rs`)
 
 - Close button hides the main window (`prevent_close` + `hide()`)
@@ -151,6 +161,7 @@ tool page → composable → api/*.ts → commands.rs → domain module
 |----------------|---------|
 | `void.clash.prefs` (`localStorage`) | Clash subscription URL, port |
 | `void.color.records` (`localStorage`) | Color picker records (max 1,000) |
+| `{app_data}/image-editor/projects/*.json` | Image editor projects (source base64 + edit-state snapshots) |
 | Tauri window state plugin | Main window position/size |
 
 Rust-side Clash state (active URL, running port) lives in process memory and is queried via `get_service_status`.
@@ -189,13 +200,13 @@ Outputs platform bundles under `src-tauri/target/release/bundle/`.
 ### GitHub Actions
 
 - **CI** (`.github/workflows/ci.yml`) — Vitest on Ubuntu; `cargo test`, frontend typecheck/build, and `cargo check` on macOS and Windows; Rust build cache enabled
-- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.3.4`); builds macOS Apple Silicon + Intel and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release. Release body is extracted from the matching section in `CHANGELOG.md` (`scripts/extract-changelog.sh`). Apple signing secrets are injected only when `APPLE_CERTIFICATE` is configured (checked in a shell script, not step `if:`); otherwise macOS builds unsigned.
+- **Release** (`.github/workflows/release.yml`) — triggered by pushing tag `v*` (e.g. `v0.4.0`); builds macOS Apple Silicon + Intel and Windows via `tauri-apps/tauri-action`, then publishes a GitHub Release. Release body is extracted from the matching section in `CHANGELOG.md` (`scripts/extract-changelog.sh`). Apple signing secrets are injected only when `APPLE_CERTIFICATE` is configured (checked in a shell script, not step `if:`); otherwise macOS builds unsigned.
 
 **Release checklist**
 
 1. Bump version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
 2. Update `CHANGELOG.md` / `CHANGELOG.zh-CN.md` (Release body is taken from the English section for the tagged version)
-3. Merge to `main`, then tag and push: `git tag v0.3.4 && git push origin v0.3.4`
+3. Merge to `main`, then tag and push: `git tag v0.4.0 && git push origin v0.4.0`
 
 | Secret | Purpose |
 |--------|---------|
@@ -270,4 +281,4 @@ DevTools are only registered when the env var is set — normal users are unaffe
 - Local HTTP server binds to `127.0.0.1` only
 - CSP restricts frontend network access to localhost
 
-Tool-specific security and edge cases are documented in `plan/tool-clash-service.md`, `plan/tool-color-picker.md`, and `plan/macos-color-picker-hide-app.md`.
+Tool-specific security and edge cases are documented in `plan/tool-clash-service.md`, `plan/tool-color-picker.md`, `plan/tool-image-editor.md`, and `plan/macos-color-picker-hide-app.md`.

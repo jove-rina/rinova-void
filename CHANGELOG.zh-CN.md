@@ -12,6 +12,28 @@ Void 的所有重要变更均记录于此。
 
 ---
 
+## [0.4.0] - 2026-07-08
+
+### 新增
+
+- **图片编辑器**工具 — 多图上传、独立全屏编辑窗口、项目持久化
+  - 入口页多图队列（点击 / 拖拽 / Tauri 路径拖放）与已保存项目列表
+  - 独立 `image-editor` WebView；会话经 IPC 批量传递（`begin/append/commit` + `take`）
+  - 视图缩放平移、四种框选形状、选区移动与八向调整、链式裁剪与重置原图
+  - 导出三种模式：通用单文件 / 缩略图批量 / ICO 批量；用户自选保存路径或目录
+  - 项目保存/打开/删除（`app_data/image-editor/projects/`），含编辑状态 PNG 快照
+  - 大图分块导出（`export_buffer`）；缩略图与 ICO 正方形校验
+- **公共 UI 组件** — `ToolEntryLayout`（工具入口三区布局）、`VoidButton`、`VoidToast` + `useToast`
+- 工具规格文档 — [plan/tool-image-editor.md](plan/tool-image-editor.md)
+
+### 变更
+
+- 取色器、Clash 服务、图片编辑器入口页迁移至 `ToolEntryLayout` + `VoidButton`
+- `VoidButton` API：`kind` 为 `button` | `icon`；`size` 为语义尺寸（`small` … `xlarge`）
+- README / ARCHITECTURE 补充图片编辑器说明；发布示例 tag 更新为 `v0.4.0`
+
+---
+
 ## [0.3.4] - 2026-07-07
 
 ### 变更
@@ -114,7 +136,8 @@ Void 的所有重要变更均记录于此。
 - 无边框主窗口与自定义拖拽标题栏
 - CI — Vitest、Rust 单元测试、多平台构建检查
 
-[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.3.4...HEAD
+[未发布]: https://github.com/jove-rina/rinova-void/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jove-rina/rinova-void/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/jove-rina/rinova-void/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2

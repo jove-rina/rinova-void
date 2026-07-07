@@ -65,6 +65,30 @@
 4. 滚轮缩放、中键/右键拖拽平移；在侧栏管理记录
 5. 退出后可在工具页重命名、复制、导出或删除记录
 
+### 图片编辑器
+
+多图裁剪、项目保存与多格式导出，在独立全屏编辑窗口中操作。
+
+| | |
+|---|---|
+| **入口** | 首页卡片 → 多图上传队列；可打开已保存项目 |
+| **编辑窗口** | 独立 `image-editor` WebView，占满当前显示器工作区 |
+| **裁剪** | 正方形 / 矩形 / 圆形 / 椭圆；选区移动与调整；链式裁剪，可重置原图 |
+| **视图** | 滚轮缩放、平移、适应窗口；与取色器共用画布交互 |
+| **导出** | 通用单文件 / 缩略图批量 / ICO 批量；自选保存路径或目录 |
+| **项目** | 保存编辑状态至应用数据目录，入口页可继续编辑 |
+| **Toast** | 导出成功后可「在文件夹中显示」 |
+
+**快速上手**
+
+1. 在首页打开 **图片编辑器**，上传一张或多张图片
+2. 点击 **开始编辑** → 进入独立编辑窗口
+3. 框选区域 → **确认裁剪**；可继续链式裁剪或 **恢复** 原图
+4. 在导出设置中选择模式与格式 → **导出**
+5. **保存** 项目以便下次从入口页打开；**退出编辑** 时可选保存并退出
+
+详见 [plan/tool-image-editor.md](plan/tool-image-editor.md)。
+
 ---
 
 ## 安装
@@ -105,7 +129,7 @@ pnpm tauri:build     # 输出 .msi / .dmg 等，位于 src-tauri/target/release/
 
 GitHub Actions 签名发布需配置 Apple 证书 Secrets — 详见 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md#发布与-ci)。本地未签名构建无需配置。
 
-发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.3.4 && git push origin v0.3.4`。Release workflow 会自动从 `CHANGELOG.md` 提取对应版本内容作为 Release 正文。
+发布新版本：更新版本号与 CHANGELOG，合并到 `main` 后执行 `git tag v0.4.0 && git push origin v0.4.0`。Release workflow 会自动从 `CHANGELOG.md` 提取对应版本内容作为 Release 正文。
 
 ---
 
@@ -150,6 +174,7 @@ pnpm test:rust     # cargo test — clash SSRF / 端口扫描 / 状态辅助
 | [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md) | 版本历史 |
 | [plan/tool-clash-service.md](plan/tool-clash-service.md) | Clash 工具规格 |
 | [plan/tool-color-picker.md](plan/tool-color-picker.md) | 取色器规格 |
+| [plan/tool-image-editor.md](plan/tool-image-editor.md) | 图片编辑器规格 |
 | [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md) | macOS「截屏时隐藏应用」实现与踩坑 |
 
 ---

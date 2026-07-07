@@ -1,158 +1,334 @@
 /**
  * useImageEditor.ts
- * 图片编辑器 — 上传、会话与导出
+ * 图片编辑器 — 多图上传、项目、打开编辑窗口
  */
-import { ref } from 'vue'
-import { exportCanvasImage, revealExportPath } from '@/api/image-editor'
-import { IMAGE_EXPORT_FORMATS } from '@/utils/image-editor-export'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import {
+  deleteImageEditorProject,
+  listImageEditorProjects,
+  loadImageEditorProject,
+  openImageEditorWindow,
+  prepareEditorSessionBatch,
+  type EditorSessionMeta,
+} from '@/api/image-editor'
+import {
+  createProjectId,
+  fileToBase64,
+  parseProjectJson,
+  type ImageEditorProjectSummary,
+} from '@/utils/image-editor-project'
+import {
+  IMAGE_COMPRESSION_PRESETS,
+  IMAGE_EXPORT_FORMATS,
+  IMAGE_SIZE_SCALE_PRESETS,
+  sanitizeExportStem,
+} from '@/utils/image-editor-export'
+import { createDocumentId } from '@/utils/image-editor-document'
+import {
+  fileFromPath,
+  isImageFile,
+  isImagePath,
+  readImageMeta,
+} from '@/utils/image-file-load'
+import { base64ToBytes } from '@/utils/image-editor-export'
+import { useToast, type ToastAction } from '@/composables/useToast'
 
-const TOAST_MS = 2500
-const TOAST_ACTION_MS = 8000
+export type { ToastAction }
 
-export interface LoadedImage {
+export interface EntryImage {
+  id: string
   file: File
   name: string
   width: number
   height: number
+  thumbUrl: string
 }
 
-export interface ToastAction {
-  label: string
-  run: () => void | Promise<void>
+const createEntryThumbUrl = async (file: File): Promise<string> => {
+  const bitmap = await createImageBitmap(file)
+  const edge = Math.max(bitmap.width, bitmap.height, 1)
+  const size = 56
+  const scale = size / edge
+  const cssW = Math.max(1, Math.round(bitmap.width * scale))
+  const cssH = Math.max(1, Math.round(bitmap.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = cssW
+  canvas.height = cssH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    bitmap.close()
+    return ''
+  }
+  ctx.drawImage(bitmap, 0, 0, cssW, cssH)
+  bitmap.close()
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, 'image/png')
+  })
+  return blob ? URL.createObjectURL(blob) : ''
 }
 
 export const useImageEditor = () => {
-  const loadedImage = ref<LoadedImage | null>(null)
-  const sessionActive = ref(false)
+  const entryImages = ref<EntryImage[]>([])
+  const activeEntryId = ref('')
+  const savedProjects = ref<ImageEditorProjectSummary[]>([])
   const loading = ref(false)
-  const exportFormatId = ref(IMAGE_EXPORT_FORMATS[0].id)
-  const errorMsg = ref('')
-  const successMsg = ref('')
-  const successAction = ref<ToastAction | null>(null)
+  const dragOver = ref(false)
+  const toast = useToast()
 
-  let toastTimer: ReturnType<typeof setTimeout> | undefined
-  let activeToastKind: 'success' | 'error' | null = null
+  const activeEntry = computed(() =>
+    entryImages.value.find((item) => item.id === activeEntryId.value) ?? null,
+  )
 
-  const dismissToast = (): void => {
-    if (activeToastKind === 'success') successMsg.value = ''
-    else if (activeToastKind === 'error') errorMsg.value = ''
-    activeToastKind = null
-    successAction.value = null
-  }
+  const previewUrlRef = ref<string | null>(null)
 
-  const scheduleToastDismiss = (delayMs: number): void => {
-    if (toastTimer) clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => {
-      toastTimer = undefined
-      dismissToast()
-    }, delayMs)
+  const syncPreviewUrl = (): void => {
+    if (previewUrlRef.value) {
+      URL.revokeObjectURL(previewUrlRef.value)
+      previewUrlRef.value = null
+    }
+    const active = activeEntry.value
+    if (active) {
+      previewUrlRef.value = URL.createObjectURL(active.file)
+    }
   }
 
   const showSuccess = (message: string, action?: ToastAction): void => {
-    dismissToast()
-    activeToastKind = 'success'
-    successMsg.value = message
-    successAction.value = action ?? null
-    scheduleToastDismiss(action ? TOAST_ACTION_MS : TOAST_MS)
+    toast.showSuccess(message, action)
   }
 
   const showError = (message: string): void => {
-    dismissToast()
-    activeToastKind = 'error'
-    errorMsg.value = message
-    scheduleToastDismiss(TOAST_MS)
+    toast.showError(message)
   }
 
-  const handleToastMouseEnter = (): void => {
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-      toastTimer = undefined
-    }
+  const revokeEntryThumb = (url: string): void => {
+    if (url) URL.revokeObjectURL(url)
   }
 
-  const handleToastMouseLeave = (): void => {
-    if (!successMsg.value && !errorMsg.value) return
-    scheduleToastDismiss(successAction.value ? TOAST_ACTION_MS : TOAST_MS)
+  const addEntryFile = async (file: File): Promise<void> => {
+    const meta = await readImageMeta(file)
+    const thumbUrl = await createEntryThumbUrl(file)
+    const id = createDocumentId()
+    entryImages.value.push({
+      id,
+      file: meta.file,
+      name: meta.name,
+      width: meta.width,
+      height: meta.height,
+      thumbUrl,
+    })
+    activeEntryId.value = id
+    syncPreviewUrl()
   }
 
-  const runSuccessAction = (): void => {
-    const action = successAction.value
-    if (!action) return
-    void action.run()
-  }
-
-  const readImageMeta = async (file: File): Promise<LoadedImage> => {
-    const bitmap = await createImageBitmap(file)
-    const meta: LoadedImage = {
-      file,
-      name: file.name,
-      width: bitmap.width,
-      height: bitmap.height,
-    }
-    bitmap.close()
-    return meta
-  }
-
-  const handleFileSelect = async (file: File | null | undefined): Promise<void> => {
-    if (!file || !file.type.startsWith('image/')) {
+  const handleFilesSelect = async (files: FileList | File[] | null | undefined): Promise<void> => {
+    const list = files ? Array.from(files) : []
+    const valid = list.filter(isImageFile)
+    if (valid.length === 0) {
       showError('请选择有效的图片文件')
       return
     }
     loading.value = true
     try {
-      loadedImage.value = await readImageMeta(file)
-      sessionActive.value = false
+      for (const file of valid) {
+        await addEntryFile(file)
+      }
     } catch {
       showError('图片加载失败')
-      loadedImage.value = null
     } finally {
       loading.value = false
     }
   }
 
-  const handleStartEdit = (): void => {
-    if (!loadedImage.value) return
-    sessionActive.value = true
+  const handleFileSelect = async (file: File | null | undefined): Promise<void> => {
+    if (!file) return
+    await handleFilesSelect([file])
   }
 
-  const handleExitEdit = (): void => {
-    sessionActive.value = false
-  }
-
-  const handleExportCanvas = async (canvas: HTMLCanvasElement): Promise<void> => {
-    if (!loadedImage.value) return
+  const handlePathSelect = async (path: string): Promise<void> => {
+    if (!isImagePath(path)) {
+      showError('请拖拽有效的图片文件')
+      return
+    }
+    loading.value = true
     try {
-      const path = await exportCanvasImage(
-        canvas,
-        loadedImage.value.name,
-        exportFormatId.value,
-      )
-      showSuccess('图片已导出到下载目录', {
-        label: '在文件夹中显示',
-        run: () => revealExportPath(path),
-      })
-    } catch (e) {
-      showError(e instanceof Error ? e.message : '导出失败')
+      const file = await fileFromPath(path)
+      await addEntryFile(file)
+    } catch {
+      showError('图片加载失败')
+    } finally {
+      loading.value = false
+      dragOver.value = false
     }
   }
 
+  const selectEntryImage = (id: string): void => {
+    if (!entryImages.value.some((item) => item.id === id)) return
+    activeEntryId.value = id
+    syncPreviewUrl()
+  }
+
+  const removeEntryImage = (id: string): void => {
+    const index = entryImages.value.findIndex((item) => item.id === id)
+    if (index < 0) return
+    const [removed] = entryImages.value.splice(index, 1)
+    revokeEntryThumb(removed.thumbUrl)
+    if (activeEntryId.value === id) {
+      const next = entryImages.value[Math.min(index, entryImages.value.length - 1)]
+      activeEntryId.value = next?.id ?? ''
+      syncPreviewUrl()
+    }
+  }
+
+  const refreshProjects = async (): Promise<void> => {
+    try {
+      savedProjects.value = await listImageEditorProjects()
+    } catch {
+      savedProjects.value = []
+    }
+  }
+
+  const buildDefaultSessionMeta = (
+    activeId: string,
+    projectId: string | null = null,
+    projectName: string | null = null,
+  ): EditorSessionMeta => ({
+    activeId,
+    exportMode: 'general',
+    exportFormatId: IMAGE_EXPORT_FORMATS[0].id,
+    compressionPresetId: IMAGE_COMPRESSION_PRESETS[0].id,
+    sizeScalePresetId: IMAGE_SIZE_SCALE_PRESETS[0].id,
+    thumbnailSizes: [],
+    icoSizes: [],
+    projectId,
+    projectName,
+  })
+
+  const openEditorWithImages = async (
+    images: Array<{
+      id: string
+      name: string
+      width: number
+      height: number
+      exportName: string
+      bytes: Uint8Array
+      editState: import('@/utils/image-editor-document').ImageEditState | null
+    }>,
+    meta: EditorSessionMeta,
+  ): Promise<void> => {
+    await prepareEditorSessionBatch(meta, images)
+    await openImageEditorWindow()
+  }
+
+  const handleStartEdit = async (): Promise<void> => {
+    if (entryImages.value.length === 0) return
+    loading.value = true
+    try {
+      const activeId = activeEntryId.value || entryImages.value[0].id
+      const images = await Promise.all(
+        entryImages.value.map(async (item) => ({
+          id: item.id,
+          name: item.name,
+          width: item.width,
+          height: item.height,
+          exportName: sanitizeExportStem(item.name),
+          bytes: new Uint8Array(await item.file.arrayBuffer()),
+          editState: null,
+        })),
+      )
+      await openEditorWithImages(images, buildDefaultSessionMeta(activeId))
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '无法打开编辑窗口')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const handleOpenProject = async (projectId: string): Promise<void> => {
+    loading.value = true
+    try {
+      const raw = await loadImageEditorProject(projectId)
+      const project = parseProjectJson(raw)
+      const images = project.documents.map((doc) => ({
+        id: doc.id,
+        name: doc.name,
+        width: doc.width,
+        height: doc.height,
+        exportName: doc.exportName,
+        bytes: base64ToBytes(doc.sourceBase64),
+        editState: doc.editState,
+      }))
+      await openEditorWithImages(images, {
+        activeId: project.activeDocumentId,
+        exportMode: project.exportMode,
+        exportFormatId: project.exportFormatId,
+        compressionPresetId: project.compressionPresetId,
+        sizeScalePresetId: project.sizeScalePresetId,
+        thumbnailSizes: [...project.thumbnailSizes],
+        icoSizes: [...project.icoSizes],
+        projectId: project.id,
+        projectName: project.name,
+      })
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '无法打开项目')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const handleDeleteProject = async (projectId: string): Promise<void> => {
+    try {
+      await deleteImageEditorProject(projectId)
+      await refreshProjects()
+      showSuccess('项目已删除')
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '删除项目失败')
+    }
+  }
+
+  let unlistenProjectsChanged: UnlistenFn | undefined
+
+  onMounted(async () => {
+    await refreshProjects()
+    try {
+      unlistenProjectsChanged = await listen('image-editor-projects-changed', () => {
+        void refreshProjects()
+      })
+    } catch {
+      // 非 Tauri 环境
+    }
+  })
+
+  onUnmounted(() => {
+    void unlistenProjectsChanged?.()
+    unlistenProjectsChanged = undefined
+    if (previewUrlRef.value) URL.revokeObjectURL(previewUrlRef.value)
+    for (const item of entryImages.value) {
+      revokeEntryThumb(item.thumbUrl)
+    }
+  })
+
   return {
-    loadedImage,
-    sessionActive,
+    entryImages,
+    activeEntryId,
+    activeEntry,
+    previewUrl: previewUrlRef,
+    savedProjects,
     loading,
-    exportFormatId,
-    exportFormats: IMAGE_EXPORT_FORMATS,
-    errorMsg,
-    successMsg,
-    successAction,
+    dragOver,
+    toast,
     handleFileSelect,
+    handleFilesSelect,
+    handlePathSelect,
+    selectEntryImage,
+    removeEntryImage,
     handleStartEdit,
-    handleExitEdit,
-    handleExportCanvas,
-    handleToastMouseEnter,
-    handleToastMouseLeave,
-    runSuccessAction,
+    handleOpenProject,
+    handleDeleteProject,
+    refreshProjects,
     showSuccess,
     showError,
+    fileToBase64,
+    createProjectId,
   }
 }

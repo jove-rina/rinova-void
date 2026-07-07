@@ -105,6 +105,32 @@ pub fn export_binary_file(
 }
 
 #[tauri::command]
+pub fn export_binary_file_base64(
+    app: AppHandle,
+    filename: String,
+    content_base64: String,
+) -> Result<String, String> {
+    crate::export::export_binary_base64_to_downloads(&app, &filename, &content_base64)
+}
+
+#[tauri::command]
+pub fn export_binary_base64_to_path(
+    dest_path: String,
+    content_base64: String,
+) -> Result<String, String> {
+    crate::export::export_binary_base64_to_path(&dest_path, &content_base64)
+}
+
+#[tauri::command]
+pub fn convert_image_base64_to_path(
+    dest_path: String,
+    format: String,
+    content_base64: String,
+) -> Result<String, String> {
+    crate::export::convert_image_base64_to_path(&dest_path, &format, &content_base64)
+}
+
+#[tauri::command]
 pub fn export_rgba_image(
     app: AppHandle,
     filename: String,
@@ -114,6 +140,127 @@ pub fn export_rgba_image(
     rgba: Vec<u8>,
 ) -> Result<String, String> {
     crate::export::export_rgba_image(&app, &filename, &format, width, height, rgba)
+}
+
+#[tauri::command]
+pub fn convert_image_base64(
+    app: AppHandle,
+    filename: String,
+    format: String,
+    content_base64: String,
+) -> Result<String, String> {
+    crate::export::convert_image_base64(&app, &filename, &format, &content_base64)
+}
+
+#[tauri::command]
+pub fn read_image_file(path: String) -> Result<crate::image_editor::ReadImageFileResult, String> {
+    crate::image_editor::read_image_file(path)
+}
+
+#[tauri::command]
+pub fn begin_editor_session(
+    state: tauri::State<crate::image_editor::ImageEditorState>,
+    session_id: String,
+    meta: crate::image_editor::EditorSessionMeta,
+) -> Result<(), String> {
+    crate::image_editor::begin_editor_session(state, session_id, meta)
+}
+
+#[tauri::command]
+pub fn append_editor_session_image(
+    state: tauri::State<crate::image_editor::ImageEditorState>,
+    session_id: String,
+    item: crate::image_editor::EditorImageItem,
+) -> Result<(), String> {
+    crate::image_editor::append_editor_session_image(state, session_id, item)
+}
+
+#[tauri::command]
+pub fn commit_editor_session(
+    state: tauri::State<crate::image_editor::ImageEditorState>,
+    session_id: String,
+) -> Result<(), String> {
+    crate::image_editor::commit_editor_session(state, session_id)
+}
+
+#[tauri::command]
+pub fn take_image_editor_session(
+    state: tauri::State<crate::image_editor::ImageEditorState>,
+) -> Result<Option<crate::image_editor::EditorSessionBatch>, String> {
+    crate::image_editor::take_image_editor_session(state)
+}
+
+#[tauri::command]
+pub fn save_image_editor_project(app: AppHandle, json: String) -> Result<String, String> {
+    crate::image_editor::save_image_editor_project(&app, json)
+}
+
+#[tauri::command]
+pub fn list_image_editor_projects(
+    app: AppHandle,
+) -> Result<Vec<crate::image_editor::ProjectSummary>, String> {
+    crate::image_editor::list_image_editor_projects(&app)
+}
+
+#[tauri::command]
+pub fn load_image_editor_project(app: AppHandle, id: String) -> Result<String, String> {
+    crate::image_editor::load_image_editor_project(&app, id)
+}
+
+#[tauri::command]
+pub fn delete_image_editor_project(app: AppHandle, id: String) -> Result<(), String> {
+    crate::image_editor::delete_image_editor_project(&app, id)
+}
+
+#[tauri::command]
+pub fn open_image_editor_window(app: AppHandle) -> Result<(), String> {
+    crate::image_editor::open_image_editor_window(&app)
+}
+
+#[tauri::command]
+pub fn begin_export_buffer(
+    state: State<crate::image_editor::ExportBufferState>,
+    export_id: String,
+) -> Result<(), String> {
+    crate::image_editor::begin_export_buffer(state, export_id)
+}
+
+#[tauri::command]
+pub fn append_export_base64(
+    state: State<crate::image_editor::ExportBufferState>,
+    export_id: String,
+    chunk_base64: String,
+) -> Result<(), String> {
+    crate::image_editor::append_export_base64(state, export_id, chunk_base64)
+}
+
+#[tauri::command]
+pub fn cancel_export_buffer(
+    state: State<crate::image_editor::ExportBufferState>,
+    export_id: String,
+) -> Result<(), String> {
+    crate::image_editor::cancel_export_buffer(state, export_id)
+}
+
+#[tauri::command]
+pub fn finish_export_binary(
+    app: AppHandle,
+    state: State<crate::image_editor::ExportBufferState>,
+    export_id: String,
+    dest_path: String,
+) -> Result<String, String> {
+    crate::image_editor::finish_export_binary(app, state, export_id, dest_path)
+}
+
+#[tauri::command]
+pub fn finish_convert_export(
+    app: AppHandle,
+    state: State<crate::image_editor::ExportBufferState>,
+    export_id: String,
+    dest_path: String,
+    format: String,
+) -> Result<String, String> {
+    crate::image_editor::finish_convert_export(app, state, export_id, dest_path, format)
 }
 
 #[tauri::command]

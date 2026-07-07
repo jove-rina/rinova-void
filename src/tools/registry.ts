@@ -3,9 +3,10 @@
  * Void 工具注册表 — 单一数据源驱动首页卡片与路由
  *
  * 新增工具步骤：
- * 1. 在 `src/tools/<tool-id>/` 下实现 Vue 页面组件
+ * 1. 在 `src/tools/<tool-id>/` 下实现 Vue 页面组件（入口页使用 `ToolEntryLayout`）
  * 2. 在本数组追加一条 ToolDefinition（含 Lucide 图标组件）
- * 3. 无需修改 router/index.ts（路由由本表自动生成）
+ * 3. 操作按钮使用 `VoidButton`（`kind`: button | icon，`size`: small | compact | medium | large | xlarge）
+ * 4. 无需修改 router/index.ts（路由由本表自动生成）
  */
 import type { Component } from 'vue'
 import { Image, Pipette, Shield, type LucideIcon } from '@lucide/vue'
@@ -52,7 +53,7 @@ export const tools: ToolDefinition[] = [
   {
     id: 'image-editor',
     name: '图片编辑器',
-    description: '上传图片，缩放与框选裁剪',
+    description: '多图裁剪、项目保存与多格式导出',
     icon: Image,
     route: '/tool/image-editor',
     component: () => import('@/tools/image-editor/index.vue'),

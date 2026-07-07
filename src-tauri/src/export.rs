@@ -1,8 +1,15 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
+use base64::Engine;
 use image::{ImageBuffer, ImageFormat, RgbaImage};
 use tauri::{AppHandle, Manager};
+
+fn decode_base64_payload(content_base64: &str) -> Result<Vec<u8>, String> {
+    base64::engine::general_purpose::STANDARD
+        .decode(content_base64.trim())
+        .map_err(|e| format!("解码图片数据失败: {e}"))
+}
 
 fn sanitize_filename(filename: &str) -> Result<String, String> {
     Path::new(filename)
@@ -11,6 +18,58 @@ fn sanitize_filename(filename: &str) -> Result<String, String> {
         .filter(|name| !name.is_empty() && !name.contains(".."))
         .map(str::to_string)
         .ok_or_else(|| "文件名无效".to_string())
+}
+
+fn validate_dest_path(path: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(path);
+    if !path.is_absolute() {
+        return Err("保存路径无效".into());
+    }
+
+    let valid_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty() && !name.contains(".."));
+
+    if valid_name.is_none() {
+        return Err("文件名无效".into());
+    }
+
+    Ok(path)
+}
+
+pub fn write_binary_to_path(path: &str, content: &[u8]) -> Result<String, String> {
+    let path = validate_dest_path(path)?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {e}"))?;
+    }
+    std::fs::write(&path, content).map_err(|e| format!("写入文件失败: {e}"))?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+pub fn export_binary_base64_to_path(path: &str, content_base64: &str) -> Result<String, String> {
+    let bytes = decode_base64_payload(content_base64)?;
+    write_binary_to_path(path, &bytes)
+}
+
+pub fn convert_image_bytes_to_path(path: &str, format: &str, bytes: &[u8]) -> Result<String, String> {
+    let image_format = parse_image_format(format)?;
+    let img = image::load_from_memory(bytes).map_err(|e| format!("无法解析图片: {e}"))?;
+
+    let mut buf = Cursor::new(Vec::new());
+    img.write_to(&mut buf, image_format)
+        .map_err(|e| format!("编码图片失败: {e}"))?;
+
+    write_binary_to_path(path, buf.get_ref())
+}
+
+pub fn convert_image_base64_to_path(
+    path: &str,
+    format: &str,
+    content_base64: &str,
+) -> Result<String, String> {
+    let bytes = decode_base64_payload(content_base64)?;
+    convert_image_bytes_to_path(path, format, &bytes)
 }
 
 fn downloads_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -46,7 +105,16 @@ pub fn export_binary_to_downloads(
     Ok(path.to_string_lossy().to_string())
 }
 
-fn parse_image_format(format: &str) -> Result<ImageFormat, String> {
+pub fn export_binary_base64_to_downloads(
+    app: &AppHandle,
+    filename: &str,
+    content_base64: &str,
+) -> Result<String, String> {
+    let bytes = decode_base64_payload(content_base64)?;
+    export_binary_to_downloads(app, filename, &bytes)
+}
+
+pub fn parse_image_format(format: &str) -> Result<ImageFormat, String> {
     match format.to_ascii_lowercase().as_str() {
         "png" => Ok(ImageFormat::Png),
         "jpeg" | "jpg" => Ok(ImageFormat::Jpeg),
@@ -73,6 +141,26 @@ pub fn export_rgba_image(
 
     let img: RgbaImage = ImageBuffer::from_raw(width, height, rgba)
         .ok_or_else(|| "图片像素数据无效".to_string())?;
+
+    let mut buf = Cursor::new(Vec::new());
+    img.write_to(&mut buf, image_format)
+        .map_err(|e| format!("编码图片失败: {e}"))?;
+
+    export_binary_to_downloads(app, &safe_name, buf.get_ref())
+}
+
+/// 将已编码图片（如 PNG base64）转码为其他格式后写入下载目录。
+pub fn convert_image_base64(
+    app: &AppHandle,
+    filename: &str,
+    format: &str,
+    content_base64: &str,
+) -> Result<String, String> {
+    let safe_name = sanitize_filename(filename)?;
+    let image_format = parse_image_format(format)?;
+    let bytes = decode_base64_payload(content_base64)?;
+
+    let img = image::load_from_memory(&bytes).map_err(|e| format!("无法解析图片: {e}"))?;
 
     let mut buf = Cursor::new(Vec::new());
     img.write_to(&mut buf, image_format)

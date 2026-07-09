@@ -12,6 +12,7 @@ import VoidButton from '@/components/VoidButton.vue'
 import VoidToast from '@/components/VoidToast.vue'
 import { useImageEditor } from '@/composables/useImageEditor'
 import { formatProjectTime } from '@/utils/image-editor-project'
+import EditorSessionHost from './session.vue'
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
@@ -26,6 +27,7 @@ const {
   savedProjects,
   loading,
   dragOver,
+  editorSession,
   toast,
   handleFilesSelect,
   handlePathSelect,
@@ -34,6 +36,7 @@ const {
   handleStartEdit,
   handleOpenProject,
   handleDeleteProject,
+  handleExitEditor,
   refreshProjects,
 } = useImageEditor()
 
@@ -123,6 +126,7 @@ onUnmounted(() => {
       :class="{
         'image-tool__dropzone--active': dragOver,
         'image-tool__dropzone--loaded': !!previewUrl,
+        'image-tool__dropzone--compact': entryImages.length > 0 && savedProjects.length > 0,
       }"
       @click="openFilePicker"
       @drop="onDrop"
@@ -164,6 +168,11 @@ onUnmounted(() => {
     <div
       v-if="entryImages.length > 0 || savedProjects.length > 0"
       class="image-tool__panels"
+      :class="{
+        'image-tool__panels--queue': entryImages.length > 0,
+        'image-tool__panels--projects': savedProjects.length > 0,
+        'image-tool__panels--both': entryImages.length > 0 && savedProjects.length > 0,
+      }"
     >
       <div v-if="entryImages.length > 0" class="image-tool__queue">
         <span class="image-tool__queue-label">已上传 {{ entryImages.length }} 张</span>
@@ -246,7 +255,7 @@ onUnmounted(() => {
     </div>
 
     <template #foot>
-      <VoidButton block size="xlarge" :disabled="entryImages.length === 0 || loading" :loading="loading" @click="handleStartEdit">
+      <VoidButton block size="xlarge" :disabled="entryImages.length === 0 || loading || !!editorSession" :loading="loading" @click="handleStartEdit">
         <Loader2 v-if="loading" :size="16" :stroke-width="2" class="image-tool__spin" />
         {{ loading ? '处理中…' : '开始编辑' }}
       </VoidButton>
@@ -254,6 +263,12 @@ onUnmounted(() => {
   </ToolEntryLayout>
 
   <VoidToast :controller="toast" />
+
+  <EditorSessionHost
+    v-if="editorSession"
+    :session="editorSession"
+    @exit="handleExitEditor"
+  />
 </template>
 
 <style lang="less" scoped>
@@ -282,6 +297,11 @@ onUnmounted(() => {
 
     &--loaded {
       border-style: solid;
+    }
+
+    &--compact {
+      flex: 1 1 42%;
+      min-height: 120px;
     }
   }
 
@@ -370,12 +390,35 @@ onUnmounted(() => {
   }
 
   &__panels {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     display: flex;
     flex-direction: column;
     gap: clamp(6px, 1vh, 8px);
     min-width: 0;
-    max-height: 38%;
+    min-height: 0;
+    max-height: 36%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    &--both {
+      max-height: 48%;
+    }
+
+    &--projects:not(&--queue) {
+      max-height: 42%;
+    }
   }
 
   &__queue {
@@ -383,6 +426,7 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+    flex: 0 0 auto;
   }
 
   &__queue-label {
@@ -475,6 +519,7 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+    flex: 0 0 auto;
   }
 
   &__projects-head {
@@ -588,7 +633,41 @@ onUnmounted(() => {
 
 @media (max-height: 520px) {
   .image-tool__panels {
-    max-height: 32%;
+    max-height: 40%;
+
+    &--both {
+      max-height: 52%;
+    }
+  }
+
+  .image-tool__dropzone {
+    min-height: 96px;
+  }
+}
+
+@media (max-height: 440px) {
+  .image-tool__panels {
+    max-height: 46%;
+
+    &--both {
+      max-height: 58%;
+    }
+  }
+
+  .image-tool__queue-thumb-btn,
+  .image-tool__queue-add {
+    width: 40px;
+    height: 40px;
+  }
+
+  .image-tool__project-card {
+    flex-basis: min(200px, 72vw);
+  }
+
+  .image-tool__project-thumb,
+  .image-tool__project-fallback {
+    width: 32px;
+    height: 32px;
   }
 }
 

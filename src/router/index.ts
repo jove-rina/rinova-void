@@ -29,11 +29,6 @@ const router = createRouter({
       component: Home,
     },
     ...toolRoutes,
-    {
-      path: '/tool/image-editor/session',
-      name: 'image-editor-session',
-      component: () => import('@/tools/image-editor/session.vue'),
-    },
   ],
 })
 

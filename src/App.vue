@@ -15,18 +15,11 @@ import WindowHeader from '@/components/WindowHeader.vue'
 const appWindow = getCurrentWindow()
 const router = useRouter()
 const aboutVisible = ref(false)
-const isEditorWindow = ref(false)
 
 const unlisteners: UnlistenFn[] = []
 
 onMounted(async () => {
   try {
-    isEditorWindow.value = appWindow.label === 'image-editor'
-    if (isEditorWindow.value) {
-      await router.replace('/tool/image-editor/session')
-      return
-    }
-
     await initWindow()
     unlisteners.push(
       await listen('open-color-picker', () => {
@@ -67,10 +60,10 @@ const goHome = (): void => {
 </script>
 
 <template>
-  <div class="void-window" :class="{ 'void-window--editor': isEditorWindow }">
-    <WindowHeader v-if="!isEditorWindow" @close="handleClose" @dblclick="goHome" />
+  <div class="void-window">
+    <WindowHeader @close="handleClose" @dblclick="goHome" />
     <router-view class="void-window__content" />
-    <AboutDialog v-if="!isEditorWindow" :visible="aboutVisible" @close="aboutVisible = false" />
+    <AboutDialog :visible="aboutVisible" @close="aboutVisible = false" />
   </div>
 </template>
 
@@ -83,11 +76,6 @@ const goHome = (): void => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-
-  &--editor {
-    border: none;
-    background: #0a0a0c;
-  }
 
   &__content {
     flex: 1;

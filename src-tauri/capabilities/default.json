@@ -5,10 +5,13 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:path:default",
+    "dialog:default",
     "core:window:allow-close",
     "core:window:allow-start-dragging",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
+    "core:event:allow-emit",
     "allow-clash-service",
     "allow-color-picker",
     "allow-image-editor",
@@ -19,6 +22,8 @@
     "core:window:allow-set-size",
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-fullscreen",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
     "core:webview:allow-internal-toggle-devtools"
   ]
 }

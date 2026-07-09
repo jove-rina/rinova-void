@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * session.vue
- * 图片编辑独立窗口 — 多图会话与编辑面板
+ * 图片编辑会话 — 主窗口全屏覆盖层（多图 + 操作面板）
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -9,12 +9,12 @@ import { Loader2 } from '@lucide/vue'
 import VoidButton from '@/components/VoidButton.vue'
 import VoidToast from '@/components/VoidToast.vue'
 import { useToast } from '@/composables/useToast'
+import type { EditorSessionPayload } from '@/composables/useImageEditor'
 import {
   exportImageWithSettings,
   notifyImageEditorProjectsChanged,
   revealExportPath,
   saveImageEditorProject,
-  takeImageEditorSession,
   type ExportSettings,
 } from '@/api/image-editor'
 import {
@@ -42,7 +42,16 @@ import {
   type ExportMode,
 } from '@/utils/image-editor-export'
 import { bytesToImageFile, isImageFile, readImageMeta } from '@/utils/image-file-load'
+import { isMacOs } from '@/utils/platform'
 import EditorSession from './editor-session.vue'
+
+const props = defineProps<{
+  session: EditorSessionPayload
+}>()
+
+const emit = defineEmits<{
+  exit: []
+}>()
 
 type PendingSnapshot = {
   documentId: string
@@ -191,9 +200,19 @@ const createThumbUrlFromEditState = async (editState: ImageEditState): Promise<s
 
 onMounted(async () => {
   try {
-    const batch = await takeImageEditorSession()
-    if (!batch?.images?.length) {
-      await getCurrentWindow().close()
+    if (!isMacOs()) {
+      await getCurrentWindow().setFullscreen(true)
+    } else {
+      await getCurrentWindow().maximize()
+    }
+  } catch {
+    // 非 Tauri 环境
+  }
+
+  try {
+    const batch = props.session
+    if (!batch.images.length) {
+      emit('exit')
       return
     }
 
@@ -225,7 +244,7 @@ onMounted(async () => {
     await nextTick()
     suppressDirty.value = false
   } catch {
-    await getCurrentWindow().close()
+    emit('exit')
   }
 })
 
@@ -260,7 +279,7 @@ const handleExitRequest = async (payload: {
     applySnapshot(payload.snapshot)
   }
   if (!hasUnsavedChanges.value) {
-    await closeEditorWindow()
+    closeEditorSession()
     return
   }
   pendingSnapshot.value = payload.snapshot
@@ -271,8 +290,8 @@ const closeExitDialog = (): void => {
   exitDialogVisible.value = false
 }
 
-const closeEditorWindow = async (): Promise<void> => {
-  await getCurrentWindow().close()
+const closeEditorSession = (): void => {
+  emit('exit')
 }
 
 const applySnapshot = (snapshot: PendingSnapshot | null | undefined): void => {
@@ -308,10 +327,10 @@ const handleExitSave = (): void => {
   openSaveNameDialog(snapshot, 'save-and-exit')
 }
 
-const handleExitDiscard = async (): Promise<void> => {
+const handleExitDiscard = (): void => {
   closeExitDialog()
   pendingSnapshot.value = null
-  await closeEditorWindow()
+  closeEditorSession()
 }
 
 const handleExitCancel = (): void => {
@@ -531,7 +550,7 @@ const confirmSaveName = async (): Promise<void> => {
   closeSaveNameDialog()
   pendingSnapshot.value = null
   if (shouldExit) {
-    await closeEditorWindow()
+    closeEditorSession()
   }
 }
 
@@ -566,7 +585,6 @@ const handleSave = (payload: {
       :export-formats="IMAGE_EXPORT_FORMATS"
       :compression-presets="IMAGE_COMPRESSION_PRESETS"
       :size-scale-presets="IMAGE_SIZE_SCALE_PRESETS"
-      standalone
       @state-snapshot="handleStateSnapshot"
       @switch-document="handleSwitchDocument"
       @add-image="handleAddImage"
@@ -644,6 +662,9 @@ const handleSave = (payload: {
 
 <style lang="less" scoped>
 .image-editor-window {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
   width: 100%;
   height: 100%;
   min-height: 0;

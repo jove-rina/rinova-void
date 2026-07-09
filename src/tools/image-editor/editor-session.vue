@@ -76,8 +76,6 @@ const props = defineProps<{
   thumbnailSizes: number[]
   icoSizes: number[]
   saving?: boolean
-  /** 独立编辑窗口内渲染（非主窗口 overlay） */
-  standalone?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -973,7 +971,7 @@ onMounted(async () => {
     resizeObserver.observe(viewport)
   }
 
-  if (props.standalone && isTauri()) {
+  if (isTauri()) {
     try {
       unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
         if (event.payload.type === 'over' || event.payload.type === 'enter') {
@@ -1011,7 +1009,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="editor-session" :class="{ 'editor-session--standalone': standalone }">
+  <div class="editor-session">
     <div
       ref="viewportRef"
       class="editor-session__viewport"
@@ -1427,15 +1425,6 @@ onUnmounted(() => {
   background: #0a0a0c;
   display: flex;
   flex-direction: row;
-
-  &--standalone {
-    position: relative;
-    inset: auto;
-    z-index: auto;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-  }
 
   &__viewport {
     flex: 1;

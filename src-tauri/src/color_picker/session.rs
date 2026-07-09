@@ -5,14 +5,50 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::color_picker::capture::{build_picker_result, capture_snapshot, CaptureSnapshot};
 use crate::color_picker::types::{
-    FinishPickerResult, MAX_RADIUS, PickerSession, PickerState, StartPickerResult, rgb_to_hex,
+    FinishPickerResult, MAX_RADIUS, PickerLaunchConfig, PickerSession, PickerState,
+    StartPickerResult, rgb_to_hex,
 };
+use crate::color_picker::window::open_color_picker_window;
 use crate::color_picker::window_layout::{layout_picker_window, restore_picker_window, save_pre_picker_layout};
+use crate::color_picker::window_target::{has_dedicated_picker_window, PICKER_WINDOW_LABEL};
 
 /// 注册 `PickerState` 到 Tauri 应用状态。
 pub fn setup<M: Manager<tauri::Wry>>(app: &M) -> Result<(), String> {
     app.manage(PickerState::default());
     Ok(())
+}
+
+pub fn prepare_picker_launch(
+    state: State<PickerState>,
+    config: PickerLaunchConfig,
+) -> Result<(), String> {
+    *state.pending_launch.lock().map_err(|e| e.to_string())? = Some(config);
+    Ok(())
+}
+
+pub fn take_picker_launch(state: State<PickerState>) -> Result<Option<PickerLaunchConfig>, String> {
+    let mut pending = state.pending_launch.lock().map_err(|e| e.to_string())?;
+    Ok(pending.take())
+}
+
+/// 托盘等入口：保留主窗口并打开取色窗口。
+pub fn open_picker_tool<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    state: State<PickerState>,
+) -> Result<(), String> {
+    *state
+        .pending_launch
+        .lock()
+        .map_err(|e| e.to_string())? = Some(PickerLaunchConfig::tray_default());
+    open_color_picker_window(app)?;
+    crate::window::show_main_window(app);
+    Ok(())
+}
+
+/// 非命令上下文打开取色工具（托盘 / 快捷键路由）。
+pub fn open_picker_tool_direct<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    let state: State<PickerState> = app.state();
+    open_picker_tool(app, state)
 }
 
 /// 枚举当前平台可用显示器（供前端下拉选择）。
@@ -224,6 +260,11 @@ fn finish_picker_inner(
 ) -> Result<FinishPickerResult, String> {
     let result = finish_picker_state(state, cancel, r, g, b)?;
     restore_picker_window(app, state)?;
+    if has_dedicated_picker_window(app) {
+        if let Some(picker) = app.get_webview_window(PICKER_WINDOW_LABEL) {
+            let _ = picker.close();
+        }
+    }
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.set_focus();
     }

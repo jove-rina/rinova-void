@@ -1,6 +1,6 @@
 //! 打开独立图片编辑窗口
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 
 use crate::window::WINDOW_BG;
 
@@ -30,7 +30,8 @@ pub fn open_image_editor_window(app: &AppHandle) -> Result<(), String> {
         .title("图片编辑")
         .inner_size(logical_w, logical_h)
         .position(pos_x, pos_y)
-        .decorations(false)
+        .decorations(true)
+        .title_bar_style(TitleBarStyle::Visible)
         .resizable(true)
         .background_color(WINDOW_BG)
         .build()

@@ -9,7 +9,10 @@ pub use crate::color_picker::macos::layout::{
 };
 
 #[cfg(not(target_os = "macos"))]
-use tauri::{AppHandle, Manager};
+use crate::color_picker::window_target::picker_webview;
+
+#[cfg(not(target_os = "macos"))]
+use tauri::AppHandle;
 
 #[cfg(not(target_os = "macos"))]
 use crate::color_picker::types::PickerState;
@@ -31,9 +34,7 @@ pub fn layout_picker_window(
 
 #[cfg(not(target_os = "macos"))]
 pub fn restore_picker_window(app: &AppHandle, _state: &PickerState) -> Result<(), String> {
-    let Some(main) = app.get_webview_window("main") else {
-        return Ok(());
-    };
-    let _ = main.set_fullscreen(false);
+    let picker = picker_webview(app)?;
+    let _ = picker.set_fullscreen(false);
     Ok(())
 }

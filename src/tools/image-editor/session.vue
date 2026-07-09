@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * session.vue
- * 图片编辑会话 — 主窗口全屏覆盖层（多图 + 操作面板）
+ * 图片编辑独立窗口 — 多图会话与操作面板
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -9,12 +9,12 @@ import { Loader2 } from '@lucide/vue'
 import VoidButton from '@/components/VoidButton.vue'
 import VoidToast from '@/components/VoidToast.vue'
 import { useToast } from '@/composables/useToast'
-import type { EditorSessionPayload } from '@/composables/useImageEditor'
 import {
   exportImageWithSettings,
   notifyImageEditorProjectsChanged,
   revealExportPath,
   saveImageEditorProject,
+  takeImageEditorSession,
   type ExportSettings,
 } from '@/api/image-editor'
 import {
@@ -42,16 +42,7 @@ import {
   type ExportMode,
 } from '@/utils/image-editor-export'
 import { bytesToImageFile, isImageFile, readImageMeta } from '@/utils/image-file-load'
-import { isMacOs } from '@/utils/platform'
 import EditorSession from './editor-session.vue'
-
-const props = defineProps<{
-  session: EditorSessionPayload
-}>()
-
-const emit = defineEmits<{
-  exit: []
-}>()
 
 type PendingSnapshot = {
   documentId: string
@@ -200,19 +191,9 @@ const createThumbUrlFromEditState = async (editState: ImageEditState): Promise<s
 
 onMounted(async () => {
   try {
-    if (!isMacOs()) {
-      await getCurrentWindow().setFullscreen(true)
-    } else {
-      await getCurrentWindow().maximize()
-    }
-  } catch {
-    // 非 Tauri 环境
-  }
-
-  try {
-    const batch = props.session
-    if (!batch.images.length) {
-      emit('exit')
+    const batch = await takeImageEditorSession()
+    if (!batch || !batch.images.length) {
+      await getCurrentWindow().close()
       return
     }
 
@@ -244,7 +225,7 @@ onMounted(async () => {
     await nextTick()
     suppressDirty.value = false
   } catch {
-    emit('exit')
+    await getCurrentWindow().close()
   }
 })
 
@@ -290,8 +271,8 @@ const closeExitDialog = (): void => {
   exitDialogVisible.value = false
 }
 
-const closeEditorSession = (): void => {
-  emit('exit')
+const closeEditorSession = async (): Promise<void> => {
+  await getCurrentWindow().close()
 }
 
 const applySnapshot = (snapshot: PendingSnapshot | null | undefined): void => {
@@ -327,10 +308,10 @@ const handleExitSave = (): void => {
   openSaveNameDialog(snapshot, 'save-and-exit')
 }
 
-const handleExitDiscard = (): void => {
+const handleExitDiscard = async (): Promise<void> => {
   closeExitDialog()
   pendingSnapshot.value = null
-  closeEditorSession()
+  await closeEditorSession()
 }
 
 const handleExitCancel = (): void => {
@@ -550,7 +531,7 @@ const confirmSaveName = async (): Promise<void> => {
   closeSaveNameDialog()
   pendingSnapshot.value = null
   if (shouldExit) {
-    closeEditorSession()
+    await closeEditorSession()
   }
 }
 

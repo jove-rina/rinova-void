@@ -11,7 +11,9 @@ pub use hide_window::{unhide_application_if_needed, CaptureHideGuard};
 use std::thread;
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
+
+use crate::color_picker::window_target::picker_webview;
 
 /// 首次截屏：等待窗口 hide 生效。
 const CAPTURE_HIDE_MS: u64 = 350;
@@ -50,10 +52,8 @@ where
 pub fn begin_hide_for_capture(app: &AppHandle, picker_active: bool) -> Result<CaptureHideGuard, String> {
     let app_for_hide = app.clone();
     let guard = run_on_main_thread(app.clone(), move || {
-        let main = app_for_hide
-            .get_webview_window("main")
-            .ok_or_else(|| "主窗口未找到".to_string())?;
-        hide_window::exclude_from_screen_capture(&main)
+        let picker = picker_webview(&app_for_hide)?;
+        hide_window::exclude_from_screen_capture(&picker)
     })?;
     let hide_ms = if picker_active {
         CAPTURE_REFRESH_HIDE_MS
@@ -68,20 +68,21 @@ pub fn begin_hide_for_capture(app: &AppHandle, picker_active: bool) -> Result<Ca
 pub fn finish_hide_for_capture(app: &AppHandle, guard: CaptureHideGuard) -> Result<(), String> {
     let app_for_restore = app.clone();
     run_on_main_thread(app.clone(), move || {
-        let main = app_for_restore
-            .get_webview_window("main")
-            .ok_or_else(|| "主窗口未找到".to_string())?;
-        hide_window::restore_screen_capture(&main, guard)
+        let picker = picker_webview(&app_for_restore)?;
+        hide_window::restore_screen_capture(&picker, guard)
     })
 }
 
-/// 从任意线程显示主窗口（托盘菜单等场景须走主线程派发）。
-pub fn present_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+/// 显示取色目标窗口（托盘菜单等场景须走主线程派发）。
+pub fn present_picker_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let app = app.clone();
     run_on_main_thread(app.clone(), move || {
-        let main = app
-            .get_webview_window("main")
-            .ok_or_else(|| "主窗口未找到".to_string())?;
-        hide_window::present_window_on_main_thread(&main)
+        let picker = picker_webview(&app)?;
+        hide_window::present_window_on_main_thread(&picker)
     })
+}
+
+/// 兼容旧调用：显示取色窗口。
+pub fn present_main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    present_picker_window(app)
 }

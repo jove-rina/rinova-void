@@ -177,7 +177,7 @@ Rust 侧 Clash 状态（当前 URL、运行端口）在进程内存中，通过 
 | 构建 | Vite 8 |
 | 样式 | Less + CSS 变量 |
 | 语言 | TypeScript（strict） |
-| 桌面 | Tauri 2（无边框，系统托盘） |
+| 桌面 | Tauri 2（系统原生窗体，系统托盘） |
 | 插件 | window-state、global-shortcut、log（debug） |
 | Clash 代理 | rinova-proxy-sdk（Rust，进程内） |
 | 屏幕截屏 | Windows GDI · macOS CoreGraphics + 窗口列表（`color_picker/`） |

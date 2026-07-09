@@ -51,6 +51,26 @@ pub fn list_picker_monitors(app: AppHandle) -> Result<Vec<MonitorInfo>, String> 
 }
 
 #[tauri::command]
+pub fn prepare_picker_launch(
+    state: State<PickerState>,
+    config: color_picker::PickerLaunchConfig,
+) -> Result<(), String> {
+    color_picker::prepare_picker_launch(state, config)
+}
+
+#[tauri::command]
+pub fn take_picker_launch(
+    state: State<PickerState>,
+) -> Result<Option<color_picker::PickerLaunchConfig>, String> {
+    color_picker::take_picker_launch(state)
+}
+
+#[tauri::command]
+pub fn open_color_picker_window(app: AppHandle) -> Result<(), String> {
+    color_picker::open_color_picker_window(&app)
+}
+
+#[tauri::command]
 pub fn start_picker(
     app: AppHandle,
     state: State<PickerState>,

@@ -9,6 +9,8 @@ use tauri::{AppHandle, Manager};
 
 use crate::color_picker::platform;
 use crate::color_picker::types::{MonitorInfo, ScreenCapture, StartPickerResult};
+#[cfg(not(target_os = "macos"))]
+use crate::color_picker::window_target::picker_webview;
 #[cfg(target_os = "macos")]
 use crate::color_picker::types::PickerState;
 
@@ -87,13 +89,12 @@ pub fn capture_snapshot(
 
     #[cfg(not(target_os = "macos"))]
     {
-        let main = app
-            .get_webview_window("main")
-            .ok_or_else(|| "主窗口未找到".to_string())?;
-        let was_visible = main.is_visible().unwrap_or(true);
+        let picker = picker_webview(app)?;
+        let was_visible = picker.is_visible().unwrap_or(true);
         if hide_app && was_visible {
-            main.hide()
-                .map_err(|e| format!("隐藏主窗口失败: {e}"))?;
+            picker
+                .hide()
+                .map_err(|e| format!("隐藏取色窗口失败: {e}"))?;
             thread::sleep(Duration::from_millis(CAPTURE_HIDE_MS));
         }
 
@@ -101,7 +102,7 @@ pub fn capture_snapshot(
             take_platform_snapshot(app, &monitors, monitor_index, capture_all, hide_app)?;
 
         if hide_app && was_visible {
-            let _ = main.show();
+            let _ = picker.show();
         }
 
         Ok(snapshot)

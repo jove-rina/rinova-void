@@ -19,8 +19,8 @@
         "resizable": false,
         "fullscreen": false,
         "transparent": false,
-        "decorations": false,
-        "shadow": false,
+        "decorations": true,
+        "titleBarStyle": "Visible",
         "backgroundColor": "#16171d",
         "center": true
       }

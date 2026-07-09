@@ -1,14 +1,15 @@
 /**
  * useImageEditor.ts
- * 图片编辑器 — 多图上传、项目、主窗口内编辑会话
+ * 图片编辑器 — 多图上传、项目、独立编辑窗口
  */
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import {
   deleteImageEditorProject,
   listImageEditorProjects,
   loadImageEditorProject,
+  openImageEditorWindow,
+  prepareEditorSessionBatch,
   type EditorSessionMeta,
 } from '@/api/image-editor'
 import {
@@ -31,23 +32,7 @@ import {
   readImageMeta,
 } from '@/utils/image-file-load'
 import { base64ToBytes } from '@/utils/image-editor-export'
-import { isMacOs } from '@/utils/platform'
 import { useToast, type ToastAction } from '@/composables/useToast'
-
-export interface EditorSessionImage {
-  id: string
-  name: string
-  width: number
-  height: number
-  exportName: string
-  bytes: Uint8Array
-  editState: ImageEditState | null
-}
-
-export interface EditorSessionPayload {
-  meta: EditorSessionMeta
-  images: EditorSessionImage[]
-}
 
 export type { ToastAction }
 
@@ -89,7 +74,6 @@ export const useImageEditor = () => {
   const savedProjects = ref<ImageEditorProjectSummary[]>([])
   const loading = ref(false)
   const dragOver = ref(false)
-  const editorSession = ref<EditorSessionPayload | null>(null)
   const toast = useToast()
 
   const activeEntry = computed(() =>
@@ -220,32 +204,20 @@ export const useImageEditor = () => {
     projectName,
   })
 
-  const exitEditorFullscreen = async (): Promise<void> => {
-    try {
-      if (!isMacOs()) {
-        await getCurrentWindow().setFullscreen(false)
-      } else {
-        await getCurrentWindow().unmaximize()
-      }
-    } catch {
-      // 非 Tauri 环境
-    }
-  }
-
-  const openEditorWithImages = (
-    images: EditorSessionImage[],
+  const openEditorWithImages = async (
+    images: Array<{
+      id: string
+      name: string
+      width: number
+      height: number
+      exportName: string
+      bytes: Uint8Array
+      editState: ImageEditState | null
+    }>,
     meta: EditorSessionMeta,
-  ): void => {
-    if (images.length === 0) {
-      throw new Error('请至少添加一张图片')
-    }
-    editorSession.value = { meta, images }
-  }
-
-  const handleExitEditor = async (): Promise<void> => {
-    editorSession.value = null
-    await exitEditorFullscreen()
-    await refreshProjects()
+  ): Promise<void> => {
+    await prepareEditorSessionBatch(meta, images)
+    await openImageEditorWindow()
   }
 
   const handleStartEdit = async (): Promise<void> => {
@@ -264,9 +236,9 @@ export const useImageEditor = () => {
           editState: null,
         })),
       )
-      openEditorWithImages(images, buildDefaultSessionMeta(activeId))
+      await openEditorWithImages(images, buildDefaultSessionMeta(activeId))
     } catch (e) {
-      showError(e instanceof Error ? e.message : '无法进入编辑')
+      showError(e instanceof Error ? e.message : '无法打开编辑窗口')
     } finally {
       loading.value = false
     }
@@ -286,7 +258,7 @@ export const useImageEditor = () => {
         bytes: base64ToBytes(doc.sourceBase64),
         editState: doc.editState,
       }))
-      openEditorWithImages(images, {
+      await openEditorWithImages(images, {
         activeId: project.activeDocumentId,
         exportMode: project.exportMode,
         exportFormatId: project.exportFormatId,
@@ -334,10 +306,6 @@ export const useImageEditor = () => {
     for (const item of entryImages.value) {
       revokeEntryThumb(item.thumbUrl)
     }
-    if (editorSession.value) {
-      editorSession.value = null
-      void exitEditorFullscreen()
-    }
   })
 
   return {
@@ -348,7 +316,6 @@ export const useImageEditor = () => {
     savedProjects,
     loading,
     dragOver,
-    editorSession,
     toast,
     handleFileSelect,
     handleFilesSelect,
@@ -358,7 +325,6 @@ export const useImageEditor = () => {
     handleStartEdit,
     handleOpenProject,
     handleDeleteProject,
-    handleExitEditor,
     refreshProjects,
     showSuccess,
     showError,

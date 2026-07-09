@@ -1,4 +1,4 @@
-use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, WebviewWindow};
+use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, TitleBarStyle, WebviewWindow};
 use tauri::window::Color;
 
 pub const WINDOW_BG: Color = Color(22, 23, 29, 255);
@@ -82,10 +82,12 @@ fn repair_window_geometry_if_needed<R: Runtime>(app: &tauri::AppHandle<R>) -> Re
     };
 
     if !is_geometry_corrupted(&main)? {
+        let _ = apply_native_window_chrome(&main);
         return Ok(());
     }
 
-    apply_default_window_geometry(&main, app)
+    apply_default_window_geometry(&main, app)?;
+    apply_native_window_chrome(&main)
 }
 
 /// 主窗口是否处于可见状态（查询失败时视为不可见）。
@@ -144,11 +146,10 @@ pub fn repair_main_window_on_launch<R: Runtime>(app: &tauri::AppHandle<R>) {
     show_main_window(app);
 }
 
-/// 显示主窗口并通知前端进入取色流程
+/// 显示主窗口并打开独立取色窗口
 pub fn open_color_picker<R: Runtime>(app: &tauri::AppHandle<R>) {
-    show_main_window(app);
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit("open-color-picker", ());
+    if let Err(e) = crate::color_picker::open_picker_tool_direct(app) {
+        log::warn!("打开取色窗口: {}", e);
     }
 }
 
@@ -174,12 +175,28 @@ pub fn open_about<R: Runtime>(app: &tauri::AppHandle<R>) {
     }
 }
 
+/// 强制使用系统原生窗体（覆盖 window-state 可能恢复的旧无边框状态）。
+fn apply_native_window_chrome<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), String> {
+    window
+        .set_decorations(true)
+        .map_err(|e| format!("设置窗口装饰失败: {e}"))?;
+
+    #[cfg(target_os = "macos")]
+    window
+        .set_title_bar_style(TitleBarStyle::Visible)
+        .map_err(|e| format!("设置标题栏样式失败: {e}"))?;
+
+    Ok(())
+}
+
 /// Apply platform window chrome: solid background matching the frontend theme.
 pub fn init_main_window<R: Runtime, M: Manager<R>>(app: &M) -> Result<(), String> {
     let handle = app.app_handle();
     let window = handle
         .get_webview_window("main")
         .ok_or_else(|| "主窗口未找到".to_string())?;
+
+    apply_native_window_chrome(&window)?;
 
     window
         .set_background_color(Some(WINDOW_BG))

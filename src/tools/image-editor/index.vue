@@ -12,7 +12,6 @@ import VoidButton from '@/components/VoidButton.vue'
 import VoidToast from '@/components/VoidToast.vue'
 import { useImageEditor } from '@/composables/useImageEditor'
 import { formatProjectTime } from '@/utils/image-editor-project'
-import EditorSessionHost from './session.vue'
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
@@ -27,7 +26,6 @@ const {
   savedProjects,
   loading,
   dragOver,
-  editorSession,
   toast,
   handleFilesSelect,
   handlePathSelect,
@@ -36,7 +34,6 @@ const {
   handleStartEdit,
   handleOpenProject,
   handleDeleteProject,
-  handleExitEditor,
   refreshProjects,
 } = useImageEditor()
 
@@ -255,7 +252,7 @@ onUnmounted(() => {
     </div>
 
     <template #foot>
-      <VoidButton block size="xlarge" :disabled="entryImages.length === 0 || loading || !!editorSession" :loading="loading" @click="handleStartEdit">
+      <VoidButton block size="xlarge" :disabled="entryImages.length === 0 || loading" :loading="loading" @click="handleStartEdit">
         <Loader2 v-if="loading" :size="16" :stroke-width="2" class="image-tool__spin" />
         {{ loading ? '处理中…' : '开始编辑' }}
       </VoidButton>
@@ -263,12 +260,6 @@ onUnmounted(() => {
   </ToolEntryLayout>
 
   <VoidToast :controller="toast" />
-
-  <EditorSessionHost
-    v-if="editorSession"
-    :session="editorSession"
-    @exit="handleExitEditor"
-  />
 </template>
 
 <style lang="less" scoped>

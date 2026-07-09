@@ -177,7 +177,7 @@ Rust-side Clash state (active URL, running port) lives in process memory and is 
 | Build | Vite 8 |
 | Styling | Less + CSS variables |
 | Language | TypeScript (strict) |
-| Desktop | Tauri 2 (frameless, system tray) |
+| Desktop | Tauri 2 (native system window chrome, system tray) |
 | Plugins | window-state, global-shortcut, log (debug) |
 | Clash proxy | rinova-proxy-sdk (Rust, in-process) |
 | Screen capture | Windows GDI · macOS CoreGraphics + window list (`color_picker/`) |

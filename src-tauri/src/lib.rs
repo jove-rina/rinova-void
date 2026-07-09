@@ -10,11 +10,23 @@ mod tray;
 mod window;
 
 use tauri::{Manager, RunEvent, WindowEvent};
+use tauri_plugin_window_state::StateFlags;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                // 不持久化 decorations，避免从旧版无边框状态恢复
+                .with_state_flags(
+                    StateFlags::SIZE
+                        | StateFlags::POSITION
+                        | StateFlags::MAXIMIZED
+                        | StateFlags::VISIBLE
+                        | StateFlags::FULLSCREEN,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -42,19 +54,34 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() != "main" {
+                let app = window.app_handle();
+                let label = window.label();
+
+                if label == "color-picker" || label == "image-editor" {
+                    if color_picker::is_picker_active(app) && label == "color-picker" {
+                        if let Err(e) = color_picker::cancel_picker(app) {
+                            log::warn!("取色取消: {}", e);
+                        }
+                    }
                     return;
                 }
-                if color_picker::is_picker_active(window.app_handle()) {
+
+                if label != "main" {
+                    return;
+                }
+
+                if color_picker::is_picker_active(app)
+                    && !color_picker::has_dedicated_picker_window(app)
+                {
                     api.prevent_close();
-                    let app = window.app_handle().clone();
-                    if let Err(e) = color_picker::cancel_picker(&app) {
+                    if let Err(e) = color_picker::cancel_picker(app) {
                         log::warn!("取色取消: {}", e);
                     }
                     return;
                 }
+
                 let _ = window.hide();
-                crate::tray::sync_toggle_menu_label(window.app_handle());
+                crate::tray::sync_toggle_menu_label(app);
                 api.prevent_close();
             }
         })
@@ -67,6 +94,9 @@ pub fn run() {
             commands::reclaim_port,
             commands::init_window,
             commands::list_picker_monitors,
+            commands::prepare_picker_launch,
+            commands::take_picker_launch,
+            commands::open_color_picker_window,
             commands::start_picker,
             commands::refresh_picker,
             commands::finish_picker,

@@ -2,6 +2,7 @@
  * color-records.ts
  * 取色记录 localStorage 持久化
  */
+import { exportTextToDownloads } from '@/api/export'
 import { toHex, toHsl, toRgb } from '@/utils/color-format'
 
 const STORAGE_KEY = 'void.color.records'
@@ -176,7 +177,6 @@ export const exportColorRecords = async (
 ): Promise<string | null> => {
   const { content, filename, mime } = serializeColorRecords(records, format)
   try {
-    const { exportTextToDownloads } = await import('@/api/export')
     return await exportTextToDownloads(filename, content)
   } catch {
     downloadTextFile(content, filename, mime)

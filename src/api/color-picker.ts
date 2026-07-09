@@ -46,10 +46,27 @@ export const MAGNIFY_OPTIONS = [
   { label: '17×', radius: 8 },
 ] as const
 
+/** 取色窗口启动参数（入口页 → 独立窗口） */
+export interface PickerLaunchConfig {
+  radius: number
+  hideApp: boolean
+  monitorIndex: number
+  captureAll: boolean
+}
+
 /** 枚举可用显示器 */
 export const listPickerMonitors = (): Promise<MonitorInfo[]> => {
   return invoke<MonitorInfo[]>('list_picker_monitors')
 }
+
+export const preparePickerLaunch = (config: PickerLaunchConfig): Promise<void> =>
+  invoke<void>('prepare_picker_launch', { config })
+
+export const takePickerLaunch = (): Promise<PickerLaunchConfig | null> =>
+  invoke<PickerLaunchConfig | null>('take_picker_launch')
+
+export const openColorPickerWindow = (): Promise<void> =>
+  invoke<void>('open_color_picker_window')
 
 /** 截屏并启动取色会话，返回 PNG 快照 */
 export const startPicker = (

@@ -8,11 +8,15 @@ import {
   finishPicker,
   listPickerMonitors,
   MAGNIFY_OPTIONS,
+  openColorPickerWindow,
+  preparePickerLaunch,
   refreshPicker,
   startPicker,
+  takePickerLaunch,
   type MonitorInfo,
   type StartPickerResult,
 } from '@/api/color-picker'
+import { revealExportPath } from '@/api/export'
 import {
   createColorRecord,
   exportColorRecords,
@@ -119,7 +123,7 @@ export const useColorPicker = () => {
     }
   }
 
-  const handleStartPick = async (): Promise<void> => {
+  const startPickerSession = async (): Promise<void> => {
     sessionPickIds.value = []
     capturing.value = true
     try {
@@ -136,6 +140,34 @@ export const useColorPicker = () => {
     } finally {
       capturing.value = false
     }
+  }
+
+  const handleStartPick = async (): Promise<void> => {
+    try {
+      await preparePickerLaunch({
+        radius: startRadius.value,
+        hideApp: hideAppOnCapture.value,
+        monitorIndex: selectedMonitorIndex.value,
+        captureAll: captureAllScreens.value,
+      })
+      await openColorPickerWindow()
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const bootstrapPickerSession = async (): Promise<boolean> => {
+    const config = await takePickerLaunch()
+    if (!config) return false
+
+    startRadius.value = config.radius
+    hideAppOnCapture.value = config.hideApp
+    selectedMonitorIndex.value = config.monitorIndex
+    captureAllScreens.value = config.captureAll
+
+    await loadMonitors()
+    await startPickerSession()
+    return true
   }
 
   const handleSessionRefresh = async (
@@ -232,7 +264,6 @@ export const useColorPicker = () => {
         showSuccess(`已导出 ${count} 条记录（${label}）`, {
           label: '打开目录',
           run: async () => {
-            const { revealExportPath } = await import('@/api/export')
             await revealExportPath(path)
           },
         })
@@ -289,6 +320,8 @@ export const useColorPicker = () => {
     toast,
     magnifyOptions: MAGNIFY_OPTIONS,
     handleStartPick,
+    startPickerSession,
+    bootstrapPickerSession,
     handleSessionRefresh,
     handleSessionRadiusChange,
     handleSessionPick,

@@ -1,17 +1,17 @@
 <script setup lang="ts">
 /**
  * index.vue
- * 取色器工具页 — 取色记录 + 启动截屏取色
+ * 取色器工具页 — 取色记录 + 启动独立取色窗口
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Loader2, Pipette } from '@lucide/vue'
 import ToolEntryLayout from '@/components/ToolEntryLayout.vue'
 import VoidButton from '@/components/VoidButton.vue'
 import VoidToast from '@/components/VoidToast.vue'
 import { useColorPicker } from '@/composables/useColorPicker'
-import { consumeColorPickerAutoStart, pendingColorPickerAutoStart } from '@/utils/color-picker-launch'
+import { loadColorRecords } from '@/utils/color-records'
 import ColorRecordsSection from './color-records-section.vue'
-import PickerSession from './picker-session.vue'
 
 const {
   startRadius,
@@ -20,42 +20,44 @@ const {
   captureAllScreens,
   monitors,
   monitorsLoading,
-  capturing,
-  refreshingCapture,
-  session,
   records,
   toast,
   magnifyOptions,
   handleStartPick,
-  handleSessionRefresh,
-  handleSessionPick,
   handleRemoveRecord,
   handleRenameRecord,
   handleCopyRecordHex,
   handleCopyRecordRgb,
   handleCopyRecordHsl,
   handleExportRecords,
-  handleSessionRadiusChange,
-  handleExitPick,
-  handleSnapshotLoadError,
 } = useColorPicker()
 
+const launching = ref(false)
 const recordsExpanded = ref(false)
 
 const recordsFill = computed(() => recordsExpanded.value && records.value.length > 0)
 
-const tryAutoStartPick = (): void => {
-  if (!consumeColorPickerAutoStart()) return
-  if (capturing.value || session.value) return
-  void handleStartPick()
+const reloadRecords = (): void => {
+  records.value = loadColorRecords()
 }
 
-onMounted(() => {
-  tryAutoStartPick()
-})
+const handleLaunchPick = async (): Promise<void> => {
+  launching.value = true
+  try {
+    await handleStartPick()
+  } finally {
+    launching.value = false
+  }
+}
 
-watch(pendingColorPickerAutoStart, (pending) => {
-  if (pending) tryAutoStartPick()
+onMounted(async () => {
+  try {
+    await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) reloadRecords()
+    })
+  } catch {
+    // 非 Tauri 环境
+  }
 })
 </script>
 
@@ -81,7 +83,7 @@ watch(pendingColorPickerAutoStart, (pending) => {
           <select
             v-model.number="selectedMonitorIndex"
             class="color-tool__select void-select"
-            :disabled="capturing || monitorsLoading || !monitors.length || captureAllScreens"
+            :disabled="launching || monitorsLoading || !monitors.length || captureAllScreens"
           >
             <option v-for="mon in monitors" :key="mon.index" :value="mon.index">
               {{ mon.label }}
@@ -90,13 +92,13 @@ watch(pendingColorPickerAutoStart, (pending) => {
         </label>
 
         <label class="color-tool__option">
-          <input v-model="captureAllScreens" type="checkbox" :disabled="capturing" />
+          <input v-model="captureAllScreens" type="checkbox" :disabled="launching" />
           截取全部屏幕
         </label>
 
         <label class="color-tool__select-label">
           放大倍数
-          <select v-model.number="startRadius" class="color-tool__select void-select" :disabled="capturing">
+          <select v-model.number="startRadius" class="color-tool__select void-select" :disabled="launching">
             <option v-for="opt in magnifyOptions" :key="opt.radius" :value="opt.radius">
               {{ opt.label }}
             </option>
@@ -104,49 +106,22 @@ watch(pendingColorPickerAutoStart, (pending) => {
         </label>
 
         <label class="color-tool__option">
-          <input v-model="hideAppOnCapture" type="checkbox" :disabled="capturing" />
+          <input v-model="hideAppOnCapture" type="checkbox" :disabled="launching" />
           截屏时隐藏应用窗口
         </label>
       </template>
     </div>
 
     <template #foot>
-      <VoidButton block size="xlarge" :disabled="capturing || !!session" :loading="capturing" @click="handleStartPick">
-        <Loader2 v-if="capturing" :size="16" :stroke-width="2" class="color-tool__spin" />
+      <VoidButton block size="xlarge" :disabled="launching" :loading="launching" @click="handleLaunchPick">
+        <Loader2 v-if="launching" :size="16" :stroke-width="2" class="color-tool__spin" />
         <Pipette v-else :size="16" :stroke-width="2" />
-        {{ capturing ? '正在截屏…' : '开始取色' }}
+        {{ launching ? '正在打开…' : '开始取色' }}
       </VoidButton>
     </template>
   </ToolEntryLayout>
 
   <VoidToast :controller="toast" />
-
-  <Teleport to="body">
-    <div v-if="capturing" class="color-tool__capture-overlay" role="status" aria-live="polite">
-      <Loader2 :size="36" :stroke-width="2" class="color-tool__capture-spin" />
-      <p class="color-tool__capture-text">正在截取屏幕…</p>
-      <p class="color-tool__capture-sub">请稍候，窗口可能短暂隐藏</p>
-    </div>
-  </Teleport>
-
-  <PickerSession
-    v-if="session"
-    :session="session"
-    :records="records"
-    :monitors="monitors"
-    :refreshing="refreshingCapture"
-    @pick="handleSessionPick"
-    @rename="handleRenameRecord"
-    @delete-record="handleRemoveRecord"
-    @copy-hex="handleCopyRecordHex"
-    @copy-rgb="handleCopyRecordRgb"
-    @copy-hsl="handleCopyRecordHsl"
-    @export="handleExportRecords"
-    @refresh="handleSessionRefresh"
-    @update:radius="handleSessionRadiusChange"
-    @load-error="handleSnapshotLoadError"
-    @exit="handleExitPick"
-  />
 </template>
 
 <style lang="less" scoped>
@@ -204,38 +179,6 @@ watch(pendingColorPickerAutoStart, (pending) => {
 
   &__spin {
     animation: spin 1s linear infinite;
-  }
-
-  &__capture-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 10001;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    background: rgba(10, 10, 12, 0.92);
-    backdrop-filter: blur(4px);
-  }
-
-  &__capture-spin {
-    color: var(--void-accent);
-    animation: spin 0.9s linear infinite;
-  }
-
-  &__capture-text {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--void-text);
-  }
-
-  &__capture-sub {
-    margin: 0;
-    font-size: 12px;
-    color: var(--void-text-dim);
-    opacity: 0.85;
   }
 }
 

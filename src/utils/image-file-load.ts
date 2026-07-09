@@ -44,7 +44,7 @@ export const readImageMeta = async (
 }
 
 export const bytesToImageFile = (bytes: ArrayLike<number>, name: string): File => {
-  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  const data = Uint8Array.from(bytes)
   const type = guessMimeFromName(name)
   return new File([data], name, { type })
 }

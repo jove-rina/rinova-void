@@ -21,10 +21,11 @@ pub fn run() {
                 .with_state_flags(
                     StateFlags::SIZE
                         | StateFlags::POSITION
-                        | StateFlags::MAXIMIZED
                         | StateFlags::VISIBLE
                         | StateFlags::FULLSCREEN,
                 )
+                // 工具窗口每次由代码创建，禁止恢复/持久化状态（避免黑屏或尺寸损坏）
+                .with_denylist(&["color-picker", "image-editor"])
                 .build(),
         )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -57,12 +58,14 @@ pub fn run() {
                 let app = window.app_handle();
                 let label = window.label();
 
-                if label == "color-picker" || label == "image-editor" {
-                    if color_picker::is_picker_active(app) && label == "color-picker" {
-                        if let Err(e) = color_picker::cancel_picker(app) {
-                            log::warn!("取色取消: {}", e);
-                        }
+                if label == "color-picker" {
+                    if let Err(e) = color_picker::reset_picker_on_window_close(app) {
+                        log::warn!("取色窗口关闭: {}", e);
                     }
+                    return;
+                }
+
+                if label == "image-editor" {
                     return;
                 }
 

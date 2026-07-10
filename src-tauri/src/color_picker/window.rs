@@ -1,48 +1,66 @@
 //! 打开独立取色窗口
 
-use tauri::{Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewWindowBuilder};
 
-use crate::window::WINDOW_BG;
+#[cfg(debug_assertions)]
+use tauri::webview::PageLoadEvent;
+
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
+
+use crate::window::{
+    present_maximized_tool_window, spawn_tool_window_creation, tool_webview_url,
+    tool_window_placement, WINDOW_BG,
+};
+
+const SESSION_ROUTE: &str = "/tool/color-picker/session";
 
 pub fn open_color_picker_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    spawn_tool_window_creation(app, open_color_picker_window_inner)
+}
+
+pub fn open_color_picker_window_inner<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<(), String> {
     if let Some(win) = app.get_webview_window(super::window_target::PICKER_WINDOW_LABEL) {
-        let _ = win.unminimize();
-        win.show().map_err(|e| format!("显示取色窗口失败: {e}"))?;
-        let _ = win.set_focus();
-        return Ok(());
+        win.destroy()
+            .map_err(|e| format!("销毁旧取色窗口失败: {e}"))?;
     }
 
-    let monitors = app.available_monitors().map_err(|e| e.to_string())?;
-    let monitor = monitors
-        .iter()
-        .max_by_key(|m| {
-            let area = m.work_area();
-            area.size.width.saturating_mul(area.size.height)
-        })
-        .or(monitors.first())
-        .ok_or_else(|| "未检测到可用显示器".to_string())?;
+    let (logical_w, logical_h, pos_x, pos_y) = tool_window_placement(app)?;
 
-    let scale = monitor.scale_factor();
-    let work = monitor.work_area();
-    let logical_w = (work.size.width as f64 / scale).round().max(800.0);
-    let logical_h = (work.size.height as f64 / scale).round().max(600.0);
-    let pos_x = work.position.x as f64 / scale;
-    let pos_y = work.position.y as f64 / scale;
-
-    WebviewWindowBuilder::new(
+    let base_builder = WebviewWindowBuilder::new(
         app,
         super::window_target::PICKER_WINDOW_LABEL,
-        WebviewUrl::default(),
+        tool_webview_url(app, SESSION_ROUTE),
     )
     .title("取色")
     .inner_size(logical_w, logical_h)
     .position(pos_x, pos_y)
     .decorations(true)
-    .title_bar_style(TitleBarStyle::Visible)
-    .resizable(true)
-    .background_color(WINDOW_BG)
-    .build()
-    .map_err(|e| format!("创建取色窗口失败: {e}"))?;
+    .maximized(true);
+
+    #[cfg(debug_assertions)]
+    let base_builder = base_builder.on_page_load(|webview, payload| {
+        if payload.event() == PageLoadEvent::Finished {
+            webview.open_devtools();
+            log::info!("取色窗口 DevTools 已打开");
+        }
+    });
+
+    #[cfg(target_os = "macos")]
+    let builder = base_builder.title_bar_style(TitleBarStyle::Visible);
+    #[cfg(not(target_os = "macos"))]
+    let builder = base_builder;
+
+    let win = builder
+        .resizable(true)
+        .background_color(WINDOW_BG)
+        .visible(true)
+        .build()
+        .map_err(|e| format!("创建取色窗口失败: {e}"))?;
+
+    present_maximized_tool_window(&win);
 
     Ok(())
 }

@@ -166,6 +166,18 @@ pub fn finish_picker(
     finish_picker_inner(&app, &state, cancel, r, g, b)
 }
 
+/// 窗口关闭时重置取色状态，不再递归调用 `close()`。
+pub fn reset_picker_on_window_close(app: &AppHandle) -> Result<(), String> {
+    let state: State<PickerState> = app.state();
+    let active = *state.is_active.lock().map_err(|e| e.to_string())?;
+    if active {
+        finish_picker_state(&state, true, None, None, None)?;
+        restore_picker_window(app, &state)?;
+    }
+    *state.pending_launch.lock().map_err(|e| e.to_string())? = None;
+    Ok(())
+}
+
 /// 窗口关闭等场景下的静默取消。
 pub fn cancel_picker(app: &AppHandle) -> Result<(), String> {
     let state: State<PickerState> = app.state();

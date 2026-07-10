@@ -37,12 +37,30 @@ pub fn setup_logging<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Res
     )
 }
 
-/// 打开主窗口 DevTools（仅 debug 构建或启用 `tauri/devtools` feature 时可用）。
+/// 打开当前焦点窗口的 DevTools；若无焦点则尝试工具窗口，最后回退主窗口。
 #[cfg(any(debug_assertions, feature = "devtools"))]
 fn open_webview_devtools<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
-    if let Some(w) = app.get_webview_window("main") {
-        w.open_devtools();
-        log::info!("DevTools opened (VOID_DEVTOOLS=1)");
+    for (label, window) in app.webview_windows() {
+        if window.is_focused().unwrap_or(false) {
+            window.open_devtools();
+            log::info!("DevTools opened for focused window: {label}");
+            return;
+        }
+    }
+
+    for label in ["color-picker", "image-editor"] {
+        if let Some(window) = app.get_webview_window(label) {
+            if window.is_visible().unwrap_or(false) {
+                window.open_devtools();
+                log::info!("DevTools opened for tool window: {label}");
+                return;
+            }
+        }
+    }
+
+    if let Some(window) = app.get_webview_window("main") {
+        window.open_devtools();
+        log::info!("DevTools opened for main window");
     }
 }
 
@@ -60,7 +78,8 @@ pub fn setup_devtools_shortcut<R: tauri::Runtime>(
 ) -> Result<(), Box<dyn std::error::Error>> {
     use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-    if !env_enabled("VOID_DEVTOOLS") {
+    let devtools_enabled = cfg!(debug_assertions) || env_enabled("VOID_DEVTOOLS");
+    if !devtools_enabled {
         return Ok(());
     }
 
@@ -76,7 +95,11 @@ pub fn setup_devtools_shortcut<R: tauri::Runtime>(
     })?;
 
     gs.register(shortcut)?;
-    log::info!("DevTools shortcut: Ctrl+Shift+Alt+I (VOID_DEVTOOLS=1)");
+    if cfg!(debug_assertions) {
+        log::info!("DevTools shortcut: Ctrl+Shift+Alt+I (debug build)");
+    } else {
+        log::info!("DevTools shortcut: Ctrl+Shift+Alt+I (VOID_DEVTOOLS=1)");
+    }
     Ok(())
 }
 

@@ -4,7 +4,6 @@
  * 截屏取色 — 左侧快照视口，右侧操作面板（多点取色）
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Loader2, Minus, Plus, RefreshCw, Scan, X } from '@lucide/vue'
 import VoidButton from '@/components/VoidButton.vue'
 import {
@@ -27,7 +26,6 @@ import {
   type CanvasTransform,
 } from '@/utils/picker-canvas'
 import { toHex, toHsl, toRgb } from '@/utils/color-format'
-import { isMacOs } from '@/utils/platform'
 import type { ColorRecord, ColorRecordExportFormat } from '@/utils/color-records'
 
 const props = defineProps<{
@@ -493,10 +491,6 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
-  // macOS 原生全屏会跳到主屏；Rust 已将窗口铺满目标显示器
-  if (!isMacOs()) {
-    await getCurrentWindow().setFullscreen(true)
-  }
 
   const viewport = viewportRef.value
   if (viewport) {

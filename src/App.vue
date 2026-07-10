@@ -10,6 +10,11 @@ import { useRouter } from 'vue-router'
 import { initWindow } from '@/api/clash-service'
 import AboutDialog from '@/components/AboutDialog.vue'
 
+const SESSION_ROUTES: Record<string, string> = {
+  'color-picker': '/tool/color-picker/session',
+  'image-editor': '/tool/image-editor/session',
+}
+
 const router = useRouter()
 const aboutVisible = ref(false)
 
@@ -18,12 +23,12 @@ const unlisteners: UnlistenFn[] = []
 onMounted(async () => {
   try {
     const appWindow = getCurrentWindow()
-    const label = appWindow.label
-    if (label === 'image-editor') {
-      await router.replace('/tool/image-editor/session')
-    } else if (label === 'color-picker') {
-      await router.replace('/tool/color-picker/session')
+    const expectedRoute = SESSION_ROUTES[appWindow.label]
+    if (expectedRoute && router.currentRoute.value.path !== expectedRoute) {
+      await router.replace(expectedRoute)
     }
+
+    if (appWindow.label !== 'main') return
 
     await initWindow()
     unlisteners.push(
@@ -50,7 +55,9 @@ onUnmounted(() => {
 
 <template>
   <div class="void-window">
-    <router-view class="void-window__content" />
+    <div class="void-window__content">
+      <router-view />
+    </div>
     <AboutDialog :visible="aboutVisible" @close="aboutVisible = false" />
   </div>
 </template>

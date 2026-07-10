@@ -66,8 +66,8 @@ pub fn take_picker_launch(
 }
 
 #[tauri::command]
-pub fn open_color_picker_window(app: AppHandle) -> Result<(), String> {
-    color_picker::open_color_picker_window(&app)
+pub async fn open_color_picker_window(app: AppHandle) -> Result<(), String> {
+    color_picker::open_color_picker_window_inner(&app)
 }
 
 #[tauri::command]
@@ -233,8 +233,8 @@ pub fn delete_image_editor_project(app: AppHandle, id: String) -> Result<(), Str
 }
 
 #[tauri::command]
-pub fn open_image_editor_window(app: AppHandle) -> Result<(), String> {
-    crate::image_editor::open_image_editor_window(&app)
+pub async fn open_image_editor_window(app: AppHandle) -> Result<(), String> {
+    crate::image_editor::open_image_editor_window_inner(&app)
 }
 
 #[tauri::command]

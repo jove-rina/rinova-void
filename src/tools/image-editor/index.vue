@@ -5,6 +5,7 @@
  */
 import { onMounted, onUnmounted, ref } from 'vue'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { UnlistenFn } from '@tauri-apps/api/event'
 import { FolderOpen, Image, ImagePlus, Loader2, Trash2, X } from '@lucide/vue'
 import ToolEntryLayout from '@/components/ToolEntryLayout.vue'
@@ -14,6 +15,7 @@ import { useImageEditor } from '@/composables/useImageEditor'
 import { formatProjectTime } from '@/utils/image-editor-project'
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
+const launching = ref(false)
 
 const isTauri = (): boolean =>
   typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
@@ -36,6 +38,24 @@ const {
   handleDeleteProject,
   refreshProjects,
 } = useImageEditor()
+
+const handleLaunchEdit = async (): Promise<void> => {
+  launching.value = true
+  try {
+    await handleStartEdit()
+  } finally {
+    launching.value = false
+  }
+}
+
+const handleLaunchProject = async (projectId: string): Promise<void> => {
+  launching.value = true
+  try {
+    await handleOpenProject(projectId)
+  } finally {
+    launching.value = false
+  }
+}
 
 let unlistenDragDrop: UnlistenFn | undefined
 
@@ -72,6 +92,9 @@ onMounted(async () => {
   await refreshProjects()
   if (!isTauri()) return
   try {
+    await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) void refreshProjects()
+    })
     unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type === 'over' || event.payload.type === 'enter') {
         dragOver.value = true
@@ -222,7 +245,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="image-tool__project-open"
-              @click="handleOpenProject(project.id)"
+              @click="handleLaunchProject(project.id)"
             >
               <img
                 v-if="project.previewBase64"
@@ -252,9 +275,9 @@ onUnmounted(() => {
     </div>
 
     <template #foot>
-      <VoidButton block size="xlarge" :disabled="entryImages.length === 0 || loading" :loading="loading" @click="handleStartEdit">
-        <Loader2 v-if="loading" :size="16" :stroke-width="2" class="image-tool__spin" />
-        {{ loading ? '处理中…' : '开始编辑' }}
+      <VoidButton block size="xlarge" :disabled="entryImages.length === 0 || loading || launching" :loading="launching" @click="handleLaunchEdit">
+        <Loader2 v-if="launching" :size="16" :stroke-width="2" class="image-tool__spin" />
+        {{ launching ? '正在打开…' : '开始编辑' }}
       </VoidButton>
     </template>
   </ToolEntryLayout>

@@ -18,4 +18,4 @@ pub use session::{
     take_image_editor_session, EditorImageItem, EditorSessionBatch, EditorSessionMeta,
     ImageEditorState, ReadImageFileResult,
 };
-pub use window::open_image_editor_window;
+pub use window::open_image_editor_window_inner;

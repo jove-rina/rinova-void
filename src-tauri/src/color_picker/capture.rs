@@ -5,7 +5,7 @@ use std::thread;
 #[cfg(not(target_os = "macos"))]
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use crate::color_picker::platform;
 use crate::color_picker::types::{MonitorInfo, ScreenCapture, StartPickerResult};

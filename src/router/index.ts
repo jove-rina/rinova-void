@@ -1,15 +1,8 @@
 /**
  * router/index.ts
  * Void 应用 Vue Router 配置
- *
- * 使用 createMemoryHistory：Tauri 桌面应用无浏览器地址栏，
- * 路由完全由应用内导航（router.push）驱动，无需 URL 同步。
- *
- * 路由表构成：
- * - `/`：首页（工具列表）
- * - `/tool/*`：由 src/tools/registry.ts 展开的工具页
  */
-import { createRouter, createMemoryHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { tools } from '@/tools/registry'
 import Home from '@/views/Home.vue'
 import ColorPickerSession from '@/tools/color-picker/session.vue'
@@ -23,7 +16,7 @@ const toolRoutes = tools.map((t) => ({
 }))
 
 const router = createRouter({
-  history: createMemoryHistory(),
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',

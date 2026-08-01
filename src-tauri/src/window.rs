@@ -1,7 +1,77 @@
-use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, TitleBarStyle, WebviewWindow};
+use tauri::{Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, WebviewUrl, WebviewWindow};
+use tauri::AppHandle;
+
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
 use tauri::window::Color;
 
 pub const WINDOW_BG: Color = Color(22, 23, 29, 255);
+
+/// 工具窗口 URL：dev 走 Vite devUrl + hash；release 走 App 入口 + hash。
+pub fn tool_webview_url<R: Runtime>(app: &tauri::AppHandle<R>, route: &str) -> WebviewUrl {
+    if cfg!(debug_assertions) {
+        if let Some(mut dev_url) = app.config().build.dev_url.clone() {
+            dev_url.set_fragment(Some(route));
+            log::info!("工具窗口 URL: {dev_url}");
+            return WebviewUrl::External(dev_url);
+        }
+    }
+
+    WebviewUrl::App(format!("index.html#{route}").into())
+}
+
+/// Windows WebView2 在同步 command / 事件里 `build()` 会死锁，需独立线程创建。
+pub fn spawn_tool_window_creation<R, F>(app: &tauri::AppHandle<R>, create: F) -> Result<(), String>
+where
+    R: Runtime,
+    F: FnOnce(&AppHandle<R>) -> Result<(), String> + Send + 'static,
+{
+    #[cfg(windows)]
+    {
+        let app = app.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = create(&app) {
+                log::error!("创建工具窗口失败: {e}");
+            }
+        });
+        return Ok(());
+    }
+
+    #[cfg(not(windows))]
+    create(app)
+}
+
+/// 工具窗口默认落点：最大可用显示器的 work area（逻辑坐标 w, h, x, y）。
+pub fn tool_window_placement<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<(f64, f64, f64, f64), String> {
+    let monitors = app.available_monitors().map_err(|e| e.to_string())?;
+    let monitor = monitors
+        .iter()
+        .max_by_key(|m| {
+            let area = m.work_area();
+            area.size.width.saturating_mul(area.size.height)
+        })
+        .or(monitors.first())
+        .ok_or_else(|| "未检测到可用显示器".to_string())?;
+
+    let scale = monitor.scale_factor();
+    let work = monitor.work_area();
+    Ok((
+        (work.size.width as f64 / scale).round().max(800.0),
+        (work.size.height as f64 / scale).round().max(600.0),
+        work.position.x as f64 / scale,
+        work.position.y as f64 / scale,
+    ))
+}
+
+/// 显示工具窗口并最大化到当前显示器。
+pub fn present_maximized_tool_window<R: Runtime>(win: &WebviewWindow<R>) {
+    let _ = win.unminimize();
+    let _ = win.show();
+    let _ = win.maximize();
+    let _ = win.set_focus();
+}
 
 /// 与 `tauri.conf.json` 中 main 窗口初始逻辑尺寸一致。
 pub const DEFAULT_WINDOW_WIDTH: u32 = 400;
@@ -57,10 +127,18 @@ pub fn apply_default_window_geometry<R: Runtime>(
         DEFAULT_WINDOW_HEIGHT as f64,
     ))
     .map_err(|e| format!("设置窗口尺寸失败: {e}"))?;
-    main.set_resizable(false)
-        .map_err(|e| format!("设置窗口不可调整大小失败: {e}"))?;
     main.set_position(PhysicalPosition::new(x, y))
         .map_err(|e| format!("设置窗口位置失败: {e}"))?;
+    apply_main_window_constraints(main)
+}
+
+/// 主面板固定尺寸：禁止拖拽缩放与最大化。
+fn apply_main_window_constraints<R: Runtime>(main: &WebviewWindow<R>) -> Result<(), String> {
+    let _ = main.unmaximize();
+    main.set_maximizable(false)
+        .map_err(|e| format!("禁用最大化失败: {e}"))?;
+    main.set_resizable(false)
+        .map_err(|e| format!("设置窗口不可调整大小失败: {e}"))?;
     Ok(())
 }
 
@@ -186,7 +264,7 @@ fn apply_native_window_chrome<R: Runtime>(window: &WebviewWindow<R>) -> Result<(
         .set_title_bar_style(TitleBarStyle::Visible)
         .map_err(|e| format!("设置标题栏样式失败: {e}"))?;
 
-    Ok(())
+    apply_main_window_constraints(window)
 }
 
 /// Apply platform window chrome: solid background matching the frontend theme.

@@ -1419,9 +1419,9 @@ onUnmounted(() => {
 
 <style lang="less" scoped>
 .editor-session {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   background: #0a0a0c;
   display: flex;
   flex-direction: row;

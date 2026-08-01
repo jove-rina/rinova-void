@@ -51,6 +51,7 @@ type PendingSnapshot = {
 }
 
 const ready = ref(false)
+const bootError = ref('')
 const activeDocumentId = ref('')
 const documents = ref<ImageDocumentEntry[]>([])
 const restoredEditState = ref<ImageEditState | null>(null)
@@ -191,9 +192,17 @@ const createThumbUrlFromEditState = async (editState: ImageEditState): Promise<s
 
 onMounted(async () => {
   try {
+    const win = getCurrentWindow()
+    await win.show()
+    await win.unminimize()
+  } catch {
+    // 非 Tauri 环境
+  }
+
+  try {
     const batch = await takeImageEditorSession()
-    if (!batch || !batch.images.length) {
-      await getCurrentWindow().close()
+    if (!batch?.images?.length) {
+      bootError.value = '未获取到图片数据，请返回入口页重新点击「开始编辑」。'
       return
     }
 
@@ -224,10 +233,14 @@ onMounted(async () => {
     ready.value = true
     await nextTick()
     suppressDirty.value = false
-  } catch {
-    await getCurrentWindow().close()
+  } catch (e) {
+    bootError.value = e instanceof Error ? e.message : '图片加载失败'
   }
 })
+
+const handleBootErrorClose = async (): Promise<void> => {
+  await getCurrentWindow().close()
+}
 
 watch(exportName, (name) => {
   if (activeDocumentId.value) {
@@ -260,7 +273,7 @@ const handleExitRequest = async (payload: {
     applySnapshot(payload.snapshot)
   }
   if (!hasUnsavedChanges.value) {
-    closeEditorSession()
+    await closeEditorWindow()
     return
   }
   pendingSnapshot.value = payload.snapshot
@@ -271,7 +284,7 @@ const closeExitDialog = (): void => {
   exitDialogVisible.value = false
 }
 
-const closeEditorSession = async (): Promise<void> => {
+const closeEditorWindow = async (): Promise<void> => {
   await getCurrentWindow().close()
 }
 
@@ -311,7 +324,7 @@ const handleExitSave = (): void => {
 const handleExitDiscard = async (): Promise<void> => {
   closeExitDialog()
   pendingSnapshot.value = null
-  await closeEditorSession()
+  await closeEditorWindow()
 }
 
 const handleExitCancel = (): void => {
@@ -531,7 +544,7 @@ const confirmSaveName = async (): Promise<void> => {
   closeSaveNameDialog()
   pendingSnapshot.value = null
   if (shouldExit) {
-    await closeEditorSession()
+    await closeEditorWindow()
   }
 }
 
@@ -574,6 +587,12 @@ const handleSave = (payload: {
       @save="handleSave"
       @exit-request="handleExitRequest"
     />
+    <div v-else-if="bootError" class="image-editor-window__loading">
+      <p class="image-editor-window__boot-error">{{ bootError }}</p>
+      <VoidButton variant="secondary" size="medium" @click="handleBootErrorClose">
+        关闭窗口
+      </VoidButton>
+    </div>
     <div v-else class="image-editor-window__loading">
       <Loader2 :size="32" :stroke-width="2" class="image-editor-window__spin" />
       <p>正在加载图片…</p>
@@ -643,9 +662,6 @@ const handleSave = (payload: {
 
 <style lang="less" scoped>
 .image-editor-window {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -661,6 +677,15 @@ const handleSave = (payload: {
     gap: 10px;
     color: #9ca3af;
     font-size: 13px;
+    padding: 24px;
+    text-align: center;
+  }
+
+  &__boot-error {
+    margin: 0;
+    max-width: 360px;
+    line-height: 1.5;
+    color: #fca5a5;
   }
 
   &__spin {

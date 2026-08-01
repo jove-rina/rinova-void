@@ -12,6 +12,11 @@ import { initWindow } from '@/api/clash-service'
 import AboutDialog from '@/components/AboutDialog.vue'
 import SettingsDialog from '@/components/SettingsDialog.vue'
 
+const SESSION_ROUTES: Record<string, string> = {
+  'color-picker': '/tool/color-picker/session',
+  'image-editor': '/tool/image-editor/session',
+}
+
 const router = useRouter()
 const aboutVisible = ref(false)
 const settingsVisible = ref(false)
@@ -24,11 +29,13 @@ onMounted(async () => {
     const appWindow = getCurrentWindow()
     const label = appWindow.label
     isMainWindow.value = label === 'main'
-    if (label === 'image-editor') {
-      await router.replace('/tool/image-editor/session')
-    } else if (label === 'color-picker') {
-      await router.replace('/tool/color-picker/session')
+
+    const expectedRoute = SESSION_ROUTES[label]
+    if (expectedRoute && router.currentRoute.value.path !== expectedRoute) {
+      await router.replace(expectedRoute)
     }
+
+    if (label !== 'main') return
 
     await initWindow()
     unlisteners.push(

@@ -19,12 +19,13 @@ mod macos;
 
 pub use session::{
     cancel_picker, finish_picker, is_picker_active, list_monitors, open_picker_tool_direct,
-    prepare_picker_launch, refresh_picker, setup, start_picker, take_picker_launch,
+    prepare_picker_launch, refresh_picker, reset_picker_on_window_close, setup, start_picker,
+    take_picker_launch,
 };
 pub use types::{
     FinishPickerResult, MonitorInfo, PickerLaunchConfig, PickerState, StartPickerResult,
 };
-pub use window::open_color_picker_window;
+pub use window::open_color_picker_window_inner;
 pub use window_target::has_dedicated_picker_window;
 
 #[cfg(target_os = "macos")]

@@ -22,7 +22,6 @@
     "core:window:allow-set-size",
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-fullscreen",
-    "core:window:allow-maximize",
     "core:window:allow-unmaximize",
     "core:webview:allow-internal-toggle-devtools"
   ]

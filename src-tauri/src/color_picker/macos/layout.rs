@@ -4,6 +4,7 @@ use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition};
 
 use crate::color_picker::macos::{hide_window, run_on_main_thread};
 use crate::color_picker::types::{PickerState, SavedWindowLayout};
+use crate::color_picker::window_target::picker_webview;
 
 /// 将主窗口对齐到目标显示器的 work area（可见区域，不含菜单栏 / Dock）。
 pub fn layout_picker_window(
@@ -25,9 +26,7 @@ fn layout_picker_window_inner(
     monitor_index: u32,
     capture_all: bool,
 ) -> Result<(), String> {
-    let main = app
-        .get_webview_window("main")
-        .ok_or_else(|| "主窗口未找到".to_string())?;
+    let main = picker_webview(app)?;
 
     {
         let mut saved = state.saved_layout.lock().map_err(|e| e.to_string())?;
@@ -110,7 +109,7 @@ pub fn restore_picker_window(app: &AppHandle, _state: &PickerState) -> Result<()
     let app = app.clone();
     run_on_main_thread(app.clone(), move || {
         let state = app.state::<PickerState>();
-        let Some(main) = app.get_webview_window("main") else {
+        let Some(main) = picker_webview(&app).ok() else {
             return Ok(());
         };
 
@@ -135,16 +134,14 @@ pub fn save_pre_picker_layout(app: &AppHandle) -> Result<(), String> {
     let app = app.clone();
     run_on_main_thread(app.clone(), move || {
         let state = app.state::<PickerState>();
-        let main = app
-            .get_webview_window("main")
-            .ok_or_else(|| "主窗口未找到".to_string())?;
+        let picker = picker_webview(&app)?;
         let mut saved = state.inner().saved_layout.lock().map_err(|e| e.to_string())?;
         if saved.is_none() {
             *saved = Some(SavedWindowLayout {
-                position: main.outer_position().map_err(|e| e.to_string())?,
-                size: main.outer_size().map_err(|e| e.to_string())?,
-                resizable: main.is_resizable().map_err(|e| e.to_string())?,
-                fullscreen: main.is_fullscreen().map_err(|e| e.to_string())?,
+                position: picker.outer_position().map_err(|e| e.to_string())?,
+                size: picker.outer_size().map_err(|e| e.to_string())?,
+                resizable: picker.is_resizable().map_err(|e| e.to_string())?,
+                fullscreen: picker.is_fullscreen().map_err(|e| e.to_string())?,
             });
         }
         Ok(())

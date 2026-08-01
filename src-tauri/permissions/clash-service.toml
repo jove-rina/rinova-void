@@ -9,4 +9,5 @@ commands.allow = [
   "check_port",
   "reclaim_port",
   "init_window",
+  "reset_window",
 ]

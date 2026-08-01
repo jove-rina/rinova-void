@@ -8,11 +8,15 @@ import {
   finishPicker,
   listPickerMonitors,
   MAGNIFY_OPTIONS,
+  openColorPickerWindow,
+  preparePickerLaunch,
   refreshPicker,
   startPicker,
+  takePickerLaunch,
   type MonitorInfo,
   type StartPickerResult,
 } from '@/api/color-picker'
+import { revealExportPath } from '@/api/export'
 import {
   createColorRecord,
   exportColorRecords,
@@ -26,15 +30,9 @@ import {
 } from '@/utils/color-records'
 import { toHsl, toRgb } from '@/utils/color-format'
 import { isMacOs } from '@/utils/platform'
+import { useToast, type ToastAction } from '@/composables/useToast'
 
-const TOAST_MS = 2500
-const TOAST_ACTION_MS = 8000
-const TOAST_LEAVE_MS = 2000
-
-export interface ToastAction {
-  label: string
-  run: () => void | Promise<void>
-}
+export type { ToastAction }
 
 const waitForPaint = (): Promise<void> =>
   new Promise((resolve) => {
@@ -51,56 +49,25 @@ export const useColorPicker = () => {
   const capturing = ref(false)
   const refreshingCapture = ref(false)
   const session = ref<StartPickerResult | null>(null)
-  const errorMsg = ref('')
-  const successMsg = ref('')
-  const successAction = ref<ToastAction | null>(null)
+  const toast = useToast()
 
   const records = ref<ColorRecord[]>(loadColorRecords())
   const sessionPickIds = ref<string[]>([])
 
-  let toastTimer: ReturnType<typeof setTimeout> | undefined
-  let activeToastKind: 'success' | 'error' | null = null
-
-  const dismissToast = (): void => {
-    if (activeToastKind === 'success') {
-      successMsg.value = ''
-    } else if (activeToastKind === 'error') {
-      errorMsg.value = ''
+  const showToast = (
+    kind: 'success' | 'error',
+    msg: string,
+    action?: ToastAction,
+  ): void => {
+    if (kind === 'success') {
+      toast.showSuccess(msg, action)
+      return
     }
-    activeToastKind = null
-    successAction.value = null
+    toast.showError(msg)
   }
 
-  const scheduleToastDismiss = (delayMs: number): void => {
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-    }
-    toastTimer = setTimeout(() => {
-      toastTimer = undefined
-      dismissToast()
-    }, delayMs)
-  }
-
-  const clearToast = (): void => {
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-      toastTimer = undefined
-    }
-    activeToastKind = null
-    successAction.value = null
-  }
-
-  const handleToastMouseEnter = (): void => {
-    if (!activeToastKind) return
-    if (toastTimer) {
-      clearTimeout(toastTimer)
-      toastTimer = undefined
-    }
-  }
-
-  const handleToastMouseLeave = (): void => {
-    if (!activeToastKind) return
-    scheduleToastDismiss(TOAST_LEAVE_MS)
+  const showSuccess = (msg: string, action?: ToastAction): void => {
+    showToast('success', msg, action)
   }
 
   const persistRecords = (): void => {
@@ -108,40 +75,6 @@ export const useColorPicker = () => {
   }
 
   watch(records, persistRecords, { deep: true })
-
-  const showToast = (
-    kind: 'success' | 'error',
-    msg: string,
-    action?: ToastAction,
-  ): void => {
-    clearToast()
-    activeToastKind = kind
-    if (kind === 'success') {
-      successMsg.value = msg
-      errorMsg.value = ''
-      successAction.value = action ?? null
-    } else {
-      errorMsg.value = msg
-      successMsg.value = ''
-      successAction.value = null
-    }
-    const duration = kind === 'success' && action ? TOAST_ACTION_MS : TOAST_MS
-    scheduleToastDismiss(duration)
-  }
-
-  const showSuccess = (msg: string, action?: ToastAction): void => {
-    showToast('success', msg, action)
-  }
-
-  const runSuccessAction = (): void => {
-    const action = successAction.value
-    if (!action) return
-    clearToast()
-    successMsg.value = ''
-    Promise.resolve(action.run()).catch((e: unknown) => {
-      showError(e instanceof Error ? e.message : '操作失败')
-    })
-  }
 
   const showError = (msg: string): void => {
     showToast('error', msg)
@@ -190,9 +123,7 @@ export const useColorPicker = () => {
     }
   }
 
-  const handleStartPick = async (): Promise<void> => {
-    errorMsg.value = ''
-    successMsg.value = ''
+  const startPickerSession = async (): Promise<void> => {
     sessionPickIds.value = []
     capturing.value = true
     try {
@@ -211,13 +142,40 @@ export const useColorPicker = () => {
     }
   }
 
+  const handleStartPick = async (): Promise<void> => {
+    try {
+      await preparePickerLaunch({
+        radius: startRadius.value,
+        hideApp: hideAppOnCapture.value,
+        monitorIndex: selectedMonitorIndex.value,
+        captureAll: captureAllScreens.value,
+      })
+      await openColorPickerWindow()
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const bootstrapPickerSession = async (): Promise<boolean> => {
+    const config = await takePickerLaunch()
+    if (!config) return false
+
+    startRadius.value = config.radius
+    hideAppOnCapture.value = config.hideApp
+    selectedMonitorIndex.value = config.monitorIndex
+    captureAllScreens.value = config.captureAll
+
+    await loadMonitors()
+    await startPickerSession()
+    return true
+  }
+
   const handleSessionRefresh = async (
     monitorIndex: number,
     captureAll: boolean,
     radius: number,
   ): Promise<void> => {
     if (!session.value) return
-    errorMsg.value = ''
     refreshingCapture.value = true
     try {
       await nextTick()
@@ -306,7 +264,6 @@ export const useColorPicker = () => {
         showSuccess(`已导出 ${count} 条记录（${label}）`, {
           label: '打开目录',
           run: async () => {
-            const { revealExportPath } = await import('@/api/export')
             await revealExportPath(path)
           },
         })
@@ -341,7 +298,7 @@ export const useColorPicker = () => {
   })
 
   onUnmounted(() => {
-    clearToast()
+    toast.dismiss()
     if (session.value) {
       void finishPicker(true).finally(() => {
         void cleanupSession()
@@ -360,11 +317,11 @@ export const useColorPicker = () => {
     refreshingCapture,
     session,
     records,
-    errorMsg,
-    successMsg,
-    successAction,
+    toast,
     magnifyOptions: MAGNIFY_OPTIONS,
     handleStartPick,
+    startPickerSession,
+    bootstrapPickerSession,
     handleSessionRefresh,
     handleSessionRadiusChange,
     handleSessionPick,
@@ -374,9 +331,6 @@ export const useColorPicker = () => {
     handleCopyRecordRgb,
     handleCopyRecordHsl,
     handleExportRecords,
-    runSuccessAction,
-    handleToastMouseEnter,
-    handleToastMouseLeave,
     handleExitPick,
     handleSnapshotLoadError,
   }

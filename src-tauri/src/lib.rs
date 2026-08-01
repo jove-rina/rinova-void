@@ -1,3 +1,4 @@
+mod image_editor;
 mod clash;
 mod color_picker;
 mod commands;
@@ -9,18 +10,34 @@ mod tray;
 mod window;
 
 use tauri::{Manager, RunEvent, WindowEvent};
+use tauri_plugin_window_state::StateFlags;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                // 不持久化 decorations，避免从旧版无边框状态恢复
+                .with_state_flags(
+                    StateFlags::SIZE
+                        | StateFlags::POSITION
+                        | StateFlags::VISIBLE
+                        | StateFlags::FULLSCREEN,
+                )
+                // 工具窗口每次由代码创建，禁止恢复/持久化状态（避免黑屏或尺寸损坏）
+                .with_denylist(&["color-picker", "image-editor"])
+                .build(),
+        )
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             debug::setup_logging(app.handle())?;
             clash::setup(app)?;
             if let Err(e) = color_picker::setup(app) {
                 log::warn!("取色器: {}", e);
             }
+            app.manage(image_editor::ImageEditorState::new());
+            app.manage(image_editor::ExportBufferState::new());
             if let Err(e) = window::init_main_window(app.handle()) {
                 log::warn!("窗口初始化: {}", e);
             }
@@ -38,16 +55,36 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" && color_picker::is_picker_active(window.app_handle()) {
+                let app = window.app_handle();
+                let label = window.label();
+
+                if label == "color-picker" {
+                    if let Err(e) = color_picker::reset_picker_on_window_close(app) {
+                        log::warn!("取色窗口关闭: {}", e);
+                    }
+                    return;
+                }
+
+                if label == "image-editor" {
+                    return;
+                }
+
+                if label != "main" {
+                    return;
+                }
+
+                if color_picker::is_picker_active(app)
+                    && !color_picker::has_dedicated_picker_window(app)
+                {
                     api.prevent_close();
-                    let app = window.app_handle().clone();
-                    if let Err(e) = color_picker::cancel_picker(&app) {
+                    if let Err(e) = color_picker::cancel_picker(app) {
                         log::warn!("取色取消: {}", e);
                     }
                     return;
                 }
+
                 let _ = window.hide();
-                crate::tray::sync_toggle_menu_label(window.app_handle());
+                crate::tray::sync_toggle_menu_label(app);
                 api.prevent_close();
             }
         })
@@ -59,11 +96,36 @@ pub fn run() {
             commands::check_port,
             commands::reclaim_port,
             commands::init_window,
+            commands::reset_window,
             commands::list_picker_monitors,
+            commands::prepare_picker_launch,
+            commands::take_picker_launch,
+            commands::open_color_picker_window,
             commands::start_picker,
             commands::refresh_picker,
             commands::finish_picker,
             commands::export_text_file,
+            commands::export_binary_file,
+            commands::export_binary_file_base64,
+            commands::export_binary_base64_to_path,
+            commands::convert_image_base64_to_path,
+            commands::export_rgba_image,
+            commands::convert_image_base64,
+            commands::read_image_file,
+            commands::begin_editor_session,
+            commands::append_editor_session_image,
+            commands::commit_editor_session,
+            commands::take_image_editor_session,
+            commands::save_image_editor_project,
+            commands::list_image_editor_projects,
+            commands::load_image_editor_project,
+            commands::delete_image_editor_project,
+            commands::open_image_editor_window,
+            commands::begin_export_buffer,
+            commands::append_export_base64,
+            commands::cancel_export_buffer,
+            commands::finish_export_binary,
+            commands::finish_convert_export,
             commands::reveal_export_path,
         ])
         .build(tauri::generate_context!())

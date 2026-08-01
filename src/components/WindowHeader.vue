@@ -57,7 +57,7 @@ const startDrag = async (e: MouseEvent): Promise<void> => {
   </div>
 </template>
 
-<style lang="less" scoped>
+<style lang="less">
 .window-header {
   display: flex;
   align-items: center;

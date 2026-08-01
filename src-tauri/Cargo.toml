@@ -1,6 +1,6 @@
 [package]
 name = "rinova-void"
-version = "0.3.4"
+version = "0.4.0"
 description = "Void — Your pocket from the void. A desktop toolbox."
 authors = ["Rina <jiuzhang.song+rina@gmail.com>"]
 license = "MIT"
@@ -32,7 +32,17 @@ rinova-proxy-sdk = "1.0.0"
 tokio = { version = "1", features = ["time"] }
 arboard = "3.6"
 base64 = "0.22"
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = [
+  "png",
+  "jpeg",
+  "webp",
+  "gif",
+  "bmp",
+  "tiff",
+  "ico",
+  "avif",
+] }
+tauri-plugin-dialog = "2.7.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9"

@@ -4,30 +4,41 @@
  * Void 主窗口根组件
  */
 import { onMounted, onUnmounted, ref } from 'vue'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+import { Settings } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { initWindow } from '@/api/clash-service'
 import AboutDialog from '@/components/AboutDialog.vue'
-import { queueColorPickerAutoStart } from '@/utils/color-picker-launch'
-import WindowHeader from '@/components/WindowHeader.vue'
+import SettingsDialog from '@/components/SettingsDialog.vue'
 
-const appWindow = getCurrentWindow()
+const SESSION_ROUTES: Record<string, string> = {
+  'color-picker': '/tool/color-picker/session',
+  'image-editor': '/tool/image-editor/session',
+}
+
 const router = useRouter()
 const aboutVisible = ref(false)
+const settingsVisible = ref(false)
+const isMainWindow = ref(false)
 
 const unlisteners: UnlistenFn[] = []
 
 onMounted(async () => {
   try {
+    const appWindow = getCurrentWindow()
+    const label = appWindow.label
+    isMainWindow.value = label === 'main'
+
+    const expectedRoute = SESSION_ROUTES[label]
+    if (expectedRoute && router.currentRoute.value.path !== expectedRoute) {
+      await router.replace(expectedRoute)
+    }
+
+    if (label !== 'main') return
+
     await initWindow()
     unlisteners.push(
-      await listen('open-color-picker', () => {
-        queueColorPickerAutoStart()
-        if (router.currentRoute.value.path !== '/tool/color-picker') {
-          void router.push('/tool/color-picker')
-        }
-      }),
       await listen<string>('open-tool', (event) => {
         if (router.currentRoute.value.path !== event.payload) {
           void router.push(event.payload)
@@ -47,22 +58,26 @@ onUnmounted(() => {
     void unlisten()
   }
 })
-
-const handleClose = async (): Promise<void> => {
-  await appWindow.close()
-}
-
-const goHome = (): void => {
-  if (router.currentRoute.value.path !== '/') {
-    router.push('/')
-  }
-}
 </script>
 
 <template>
   <div class="void-window">
-    <WindowHeader @close="handleClose" @dblclick="goHome" />
-    <router-view />
+    <header v-if="isMainWindow" class="void-window__chrome">
+      <button
+        type="button"
+        class="void-window__settings"
+        aria-label="设置"
+        @click="settingsVisible = true"
+      >
+        <Settings :size="16" :stroke-width="2" />
+      </button>
+    </header>
+    <router-view class="void-window__content" />
+    <SettingsDialog
+      :visible="settingsVisible"
+      @close="settingsVisible = false"
+      @show-about="aboutVisible = true"
+    />
     <AboutDialog :visible="aboutVisible" @close="aboutVisible = false" />
   </div>
 </template>
@@ -72,9 +87,44 @@ const goHome = (): void => {
   width: 100vw;
   height: 100vh;
   background: var(--void-bg);
-  border: 1px solid var(--void-border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+
+  &__chrome {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 36px;
+    padding: 4px clamp(12px, 3vw, 20px) 0;
+  }
+
+  &__settings {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--void-text-dim);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--void-accent);
+    }
+  }
+
+  &__content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 }
 </style>

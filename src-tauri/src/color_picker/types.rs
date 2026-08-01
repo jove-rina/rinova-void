@@ -31,9 +31,31 @@ pub(crate) struct PickerSession {
 pub struct PickerState {
     pub(crate) is_active: Mutex<bool>,
     pub(crate) session: Mutex<Option<PickerSession>>,
+    pub(crate) pending_launch: Mutex<Option<PickerLaunchConfig>>,
     /// macOS：取色开始前保存的窗口几何，结束时恢复（Windows 不使用）。
     #[cfg(target_os = "macos")]
     pub(crate) saved_layout: Mutex<Option<SavedWindowLayout>>,
+}
+
+/// 取色窗口启动参数（入口页 → 独立窗口）。
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PickerLaunchConfig {
+    pub radius: u8,
+    pub hide_app: bool,
+    pub monitor_index: u32,
+    pub capture_all: bool,
+}
+
+impl PickerLaunchConfig {
+    pub fn tray_default() -> Self {
+        Self {
+            radius: 0,
+            hide_app: true,
+            monitor_index: 0,
+            capture_all: false,
+        }
+    }
 }
 
 /// macOS 取色窗口布局前的几何快照。
@@ -50,6 +72,7 @@ impl Default for PickerState {
         Self {
             is_active: Mutex::new(false),
             session: Mutex::new(None),
+            pending_launch: Mutex::new(None),
             #[cfg(target_os = "macos")]
             saved_layout: Mutex::new(None),
         }

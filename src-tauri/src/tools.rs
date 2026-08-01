@@ -16,6 +16,11 @@ pub const TOOLS: &[ToolDef] = &[
         name: "取色器",
         route: "/tool/color-picker",
     },
+    ToolDef {
+        id: "image-editor",
+        name: "图片编辑器",
+        route: "/tool/image-editor",
+    },
 ];
 
 pub fn route_for(id: &str) -> Option<&'static str> {

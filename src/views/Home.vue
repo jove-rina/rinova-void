@@ -98,7 +98,8 @@ const openTool = (route: string): void => {
   display: flex;
   flex-direction: column;
   padding: 0 24px;
-  height: calc(100vh - 36px);
+  flex: 1;
+  min-height: 0;
 
   &__pocket {
     text-align: center;

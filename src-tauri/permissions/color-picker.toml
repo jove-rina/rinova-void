@@ -3,6 +3,9 @@ identifier = "allow-color-picker"
 description = "Color picker IPC commands"
 commands.allow = [
   "list_picker_monitors",
+  "prepare_picker_launch",
+  "take_picker_launch",
+  "open_color_picker_window",
   "start_picker",
   "refresh_picker",
   "finish_picker",

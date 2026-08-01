@@ -12,6 +12,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ---
 
+## [0.4.0] - 2026-07-08
+
+### Added
+
+- **Image editor** tool — multi-image upload, dedicated full-screen editor window, project persistence
+  - Entry page image queue (click / drag-drop / Tauri path drop) and saved project list
+  - Dedicated `image-editor` WebView; session passed via batch IPC (`begin/append/commit` + `take`)
+  - View zoom/pan, four selection shapes, selection move and 8-way resize, chain crop and reset to original
+  - Three export modes: general single file / thumbnail batch / ICO batch; user picks save path or directory
+  - Project save/open/delete (`app_data/image-editor/projects/`) with PNG edit-state snapshots
+  - Chunked export for large images (`export_buffer`); square canvas check for thumbnail and ICO modes
+- **Shared UI** — `ToolEntryLayout` (entry three-zone layout), `VoidButton`, `VoidToast` + `useToast`
+- Tool spec — [plan/tool-image-editor.md](plan/tool-image-editor.md)
+
+### Changed
+
+- Color picker, Clash service, and image editor entry pages migrated to `ToolEntryLayout` + `VoidButton`
+- `VoidButton` API: `kind` is `button` | `icon`; `size` uses semantic tokens (`small` … `xlarge`)
+- README / ARCHITECTURE updated for the image editor; release tag example bumped to `v0.4.0`
+
+---
+
 ## [0.3.4] - 2026-07-07
 
 ### Changed
@@ -114,7 +136,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Frameless main window with custom drag header
 - CI — Vitest, Rust unit tests, multi-platform build checks
 
-[Unreleased]: https://github.com/jove-rina/rinova-void/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/jove-rina/rinova-void/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jove-rina/rinova-void/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/jove-rina/rinova-void/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/jove-rina/rinova-void/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/jove-rina/rinova-void/compare/v0.3.1...v0.3.2

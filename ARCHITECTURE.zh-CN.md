@@ -36,7 +36,7 @@ rinova-void/
 │   ├── api/              类型化 Tauri invoke 封装（箭头函数 + JSDoc）
 │   ├── composables/      共享 Vue composable（useClashService、useColorPicker 等）
 │   ├── utils/            工具函数（clash-prefs、color-records、color-format 等）
-│   ├── components/       共享 UI（WindowHeader、AboutDialog）
+│   ├── components/       共享 UI（WindowHeader、ToolEntryLayout、VoidButton、VoidToast、AboutDialog）
 │   ├── views/            页面（Home）
 │   ├── tools/            工具模块 + registry.ts
 │   ├── router/           Vue Router（由 registry 自动生成路由）
@@ -53,7 +53,8 @@ rinova-void/
 │       ├── color_picker/  屏幕截屏与取色会话（Windows GDI · macOS CGDisplay）
 │       │   ├── platform/  windows · macos · unsupported
 │       │   └── macos/     hide、layout、TCC、窗口列表截屏
-│       ├── export.rs     写入 Downloads 文本文件
+│       ├── image_editor/  图片编辑会话、项目持久化、独立窗口、分块导出
+│       ├── export.rs     二进制/图像写入、reveal、Downloads 文本导出
 │       ├── tools.rs      托盘菜单工具列表（与前端 registry 对应）
 │       ├── tray.rs       系统托盘图标与菜单
 │       ├── window.rs     主窗口初始化、显示/隐藏、工具深链
@@ -104,6 +105,7 @@ rinova-void/
 | `check_port`、`reclaim_port` | `api/clash-service.ts` | `clash.rs` |
 | `list_picker_monitors`、`start_picker`、`refresh_picker`、`finish_picker` | `api/color-picker.ts` | `color_picker/` |
 | `export_text_file`、`reveal_export_path` | `api/export.ts` | `export.rs` |
+| `begin_editor_session`、`take_image_editor_session`、`open_image_editor_window` 等 | `api/image-editor.ts` | `image_editor/` |
 | `init_window` | — | `window.rs` |
 
 典型数据流：
@@ -132,6 +134,14 @@ rinova-void/
 - macOS 需屏幕录制 TCC；开发构建通过 `scripts/macos-dev-runner.sh` 稳定签名 — 见 [plan/macos-color-picker-hide-app.md](plan/macos-color-picker-hide-app.md)
 - 窗口关闭、应用退出或显式取消时自动清理
 
+### 图片编辑器（`image_editor/`）
+
+- 主窗口入口页上传多图 → 批量 IPC 写入会话 → `open_image_editor_window` 打开独立 WebView（`label: image-editor`）
+- `App.vue` 检测编辑窗口 label 后路由至 `session.vue`；`take_image_editor_session` 一次性取回数据
+- 项目 JSON 存于 `{app_data}/image-editor/projects/`；保存后 `image-editor-projects-changed` 事件刷新入口列表
+- 导出：用户自选路径/目录；大图经 `export_buffer` 分块传输；格式转码复用 `export.rs` + `image` crate
+- 规格见 [plan/tool-image-editor.md](plan/tool-image-editor.md)
+
 ### 托盘与窗口（`tray.rs`、`window.rs`）
 
 - 关闭按钮隐藏主窗口（`prevent_close` + `hide()`）
@@ -151,6 +161,7 @@ rinova-void/
 |-----------|------|
 | `void.clash.prefs`（`localStorage`） | Clash 订阅 URL、端口 |
 | `void.color.records`（`localStorage`） | 取色记录（最多 1,000 条） |
+| `{app_data}/image-editor/projects/*.json` | 图片编辑项目（原图 base64 + 编辑状态快照） |
 | Tauri window-state 插件 | 主窗口位置/尺寸 |
 
 Rust 侧 Clash 状态（当前 URL、运行端口）在进程内存中，通过 `get_service_status` 查询。
@@ -166,7 +177,7 @@ Rust 侧 Clash 状态（当前 URL、运行端口）在进程内存中，通过 
 | 构建 | Vite 8 |
 | 样式 | Less + CSS 变量 |
 | 语言 | TypeScript（strict） |
-| 桌面 | Tauri 2（无边框，系统托盘） |
+| 桌面 | Tauri 2（系统原生窗体，系统托盘） |
 | 插件 | window-state、global-shortcut、log（debug） |
 | Clash 代理 | rinova-proxy-sdk（Rust，进程内） |
 | 屏幕截屏 | Windows GDI · macOS CoreGraphics + 窗口列表（`color_picker/`） |
@@ -189,13 +200,13 @@ pnpm tauri:build
 ### GitHub Actions
 
 - **CI**（`.github/workflows/ci.yml`）— Ubuntu 上跑 Vitest；macOS / Windows 上跑 `cargo test`、前端类型检查/构建与 `cargo check`；启用 Rust 构建缓存
-- **Release**（`.github/workflows/release.yml`）— 推送 tag `v*`（如 `v0.3.4`）触发；经 `tauri-apps/tauri-action` 构建 macOS Apple Silicon + Intel 与 Windows，并发布 GitHub Release。Release 正文由 `scripts/extract-changelog.sh` 从 `CHANGELOG.md` 提取对应版本条目。仅当配置了 `APPLE_CERTIFICATE` 时才注入 Apple 签名环境变量（在 shell 脚本内判断，非 step `if:`）；否则 macOS 产出未签名包。
+- **Release**（`.github/workflows/release.yml`）— 推送 tag `v*`（如 `v0.4.0`）触发；经 `tauri-apps/tauri-action` 构建 macOS Apple Silicon + Intel 与 Windows，并发布 GitHub Release。Release 正文由 `scripts/extract-changelog.sh` 从 `CHANGELOG.md` 提取对应版本条目。仅当配置了 `APPLE_CERTIFICATE` 时才注入 Apple 签名环境变量（在 shell 脚本内判断，非 step `if:`）；否则 macOS 产出未签名包。
 
 **发布清单**
 
 1. 同步 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 版本号
 2. 更新 `CHANGELOG.md` / `CHANGELOG.zh-CN.md`（Release 正文取英文 CHANGELOG 中对应版本段落）
-3. 合并到 `main` 后打 tag 并推送：`git tag v0.3.4 && git push origin v0.3.4`
+3. 合并到 `main` 后打 tag 并推送：`git tag v0.4.0 && git push origin v0.4.0`
 
 | Secret | 用途 |
 |--------|------|
@@ -270,4 +281,4 @@ $env:VOID_LOG = "1"
 - 本地 HTTP 服务仅绑定 `127.0.0.1`
 - CSP 限制前端网络访问为 localhost
 
-各工具的安全细节与边界情况见 `plan/tool-clash-service.md`、`plan/tool-color-picker.md` 与 `plan/macos-color-picker-hide-app.md`。
+各工具的安全细节与边界情况见 `plan/tool-clash-service.md`、`plan/tool-color-picker.md`、`plan/tool-image-editor.md` 与 `plan/macos-color-picker-hide-app.md`。

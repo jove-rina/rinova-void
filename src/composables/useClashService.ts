@@ -20,6 +20,7 @@ import {
   type ServiceStatus,
 } from '@/api/clash-service'
 import { loadClashPrefs, saveClashPrefs } from '@/utils/clash-prefs'
+import { useToast } from '@/composables/useToast'
 
 /**
  * Clash 工具页面向用户展示的 UI 状态。
@@ -41,8 +42,7 @@ export const useClashService = () => {
   // ── UI 状态 ────────────────────────────────────────────────────────
   const status = ref<ClashUiStatus>('idle')
   const serviceUrl = ref('')
-  const errorMsg = ref('')
-  const successMsg = ref('')
+  const toast = useToast()
   const copied = ref(false)
   const refreshing = ref(false)
   const runner = ref<'builtin' | null>(null)
@@ -52,8 +52,6 @@ export const useClashService = () => {
   const allowPortFallback = ref(false)
   const portReclaimable = ref(false)
 
-  /** 成功提示自动消失的定时器句柄 */
-  let successTimer: ReturnType<typeof setTimeout> | undefined
   /** 端口输入防抖检测的定时器句柄 */
   let portCheckTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -113,17 +111,12 @@ export const useClashService = () => {
   watch(allowPortFallback, refreshPortHint)
 
   /**
-   * 显示临时成功提示，3 秒后自动清除；同时清空错误信息。
+   * 显示临时成功提示。
    *
    * @param msg - 展示给用户的成功文案
    */
   const showSuccess = (msg: string): void => {
-    if (successTimer) clearTimeout(successTimer)
-    successMsg.value = msg
-    errorMsg.value = ''
-    successTimer = setTimeout(() => {
-      successMsg.value = ''
-    }, 3000)
+    toast.showSuccess(msg)
   }
 
   /**
@@ -165,17 +158,16 @@ export const useClashService = () => {
    */
   const handleStart = async (): Promise<void> => {
     if (!url.value.trim()) {
-      errorMsg.value = '请输入订阅 URL'
+      toast.showError('请输入订阅 URL')
       return
     }
     if (!port.value || Number.isNaN(port.value) || port.value < 1024) {
-      errorMsg.value = '请输入有效的端口号（1024-65535）'
+      toast.showError('请输入有效的端口号（1024-65535）')
       return
     }
 
     status.value = 'starting'
-    errorMsg.value = ''
-    successMsg.value = ''
+    toast.dismiss()
 
     try {
       const result = await startService(url.value.trim(), port.value, allowPortFallback.value)
@@ -193,7 +185,7 @@ export const useClashService = () => {
       portHint.value = ''
       persistPrefs()
     } catch (err) {
-      errorMsg.value = String(err)
+      toast.showError(String(err))
       status.value = 'error'
     }
   }
@@ -203,8 +195,7 @@ export const useClashService = () => {
    */
   const handleStop = async (): Promise<void> => {
     status.value = 'stopping'
-    errorMsg.value = ''
-    successMsg.value = ''
+    toast.dismiss()
 
     try {
       await stopService()
@@ -213,7 +204,7 @@ export const useClashService = () => {
       runner.value = null
       showSuccess('服务已停止')
     } catch (err) {
-      errorMsg.value = String(err)
+      toast.showError(String(err))
       status.value = 'error'
     }
   }
@@ -223,13 +214,13 @@ export const useClashService = () => {
    */
   const handleReclaimPort = async (): Promise<void> => {
     if (!port.value) return
-    errorMsg.value = ''
+    toast.dismiss()
     try {
       await reclaimPort(port.value)
       showSuccess(`端口 ${port.value} 已释放`)
       await refreshPortHint()
     } catch (err) {
-      errorMsg.value = String(err)
+      toast.showError(String(err))
     }
   }
 
@@ -246,10 +237,10 @@ export const useClashService = () => {
           data.skipped ? '上次刷新仍在进行中' : `已刷新，${data.nodes ?? 0} 个节点`,
         )
       } else {
-        errorMsg.value = '刷新失败'
+        toast.showError('刷新失败')
       }
     } catch (err) {
-      errorMsg.value = `刷新失败: ${err}`
+      toast.showError(`刷新失败: ${err}`)
     } finally {
       refreshing.value = false
     }
@@ -268,7 +259,7 @@ export const useClashService = () => {
         copied.value = false
       }, 2000)
     } catch {
-      errorMsg.value = '复制失败'
+      toast.showError('复制失败')
     }
   }
 
@@ -298,8 +289,7 @@ export const useClashService = () => {
     port,
     status,
     serviceUrl,
-    errorMsg,
-    successMsg,
+    toast,
     copied,
     refreshing,
     runner,

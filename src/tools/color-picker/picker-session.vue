@@ -4,8 +4,8 @@
  * 截屏取色 — 左侧快照视口，右侧操作面板（多点取色）
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Loader2, Minus, Plus, RefreshCw, Scan, X } from '@lucide/vue'
+import VoidButton from '@/components/VoidButton.vue'
 import {
   gridMeta,
   MAGNIFY_OPTIONS,
@@ -26,7 +26,6 @@ import {
   type CanvasTransform,
 } from '@/utils/picker-canvas'
 import { toHex, toHsl, toRgb } from '@/utils/color-format'
-import { isMacOs } from '@/utils/platform'
 import type { ColorRecord, ColorRecordExportFormat } from '@/utils/color-records'
 
 const props = defineProps<{
@@ -492,10 +491,6 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
-  // macOS 原生全屏会跳到主屏；Rust 已将窗口铺满目标显示器
-  if (!isMacOs()) {
-    await getCurrentWindow().setFullscreen(true)
-  }
 
   const viewport = viewportRef.value
   if (viewport) {
@@ -615,14 +610,9 @@ onUnmounted(() => {
       <div class="picker-session__zoom">
         <span class="picker-session__zoom-label">视图缩放</span>
         <div class="picker-session__zoom-controls">
-          <button
-            type="button"
-            class="picker-session__icon-btn"
-            title="缩小 (-)"
-            @click="zoomBy(1 / ZOOM_STEP_FACTOR)"
-          >
+          <VoidButton kind="icon" size="medium" title="缩小 (-)" @click="zoomBy(1 / ZOOM_STEP_FACTOR)">
             <Minus :size="14" :stroke-width="2" />
-          </button>
+          </VoidButton>
           <div class="picker-session__zoom-input-wrap">
             <input
               v-model="zoomInputValue"
@@ -635,22 +625,12 @@ onUnmounted(() => {
               @keydown="onZoomInputKeydown"
             />
           </div>
-          <button
-            type="button"
-            class="picker-session__icon-btn"
-            title="放大 (+)"
-            @click="zoomBy(ZOOM_STEP_FACTOR)"
-          >
+          <VoidButton kind="icon" size="medium" title="放大 (+)" @click="zoomBy(ZOOM_STEP_FACTOR)">
             <Plus :size="14" :stroke-width="2" />
-          </button>
-          <button
-            type="button"
-            class="picker-session__icon-btn"
-            title="适应窗口 (0)"
-            @click="fitToView"
-          >
+          </VoidButton>
+          <VoidButton kind="icon" size="medium" title="适应窗口 (0)" @click="fitToView">
             <Scan :size="14" :stroke-width="2" />
-          </button>
+          </VoidButton>
         </div>
       </div>
 
@@ -677,14 +657,10 @@ onUnmounted(() => {
       />
 
       <div class="picker-session__actions">
-        <button
-          type="button"
-          class="picker-session__btn picker-session__btn--exit"
-          @click="emit('exit')"
-        >
+        <VoidButton block variant="secondary" size="xlarge" @click="emit('exit')">
           <X :size="16" :stroke-width="2" />
           退出取色
-        </button>
+        </VoidButton>
       </div>
     </aside>
   </div>
@@ -963,23 +939,6 @@ onUnmounted(() => {
     font-family: ui-monospace, 'Cascadia Code', monospace;
   }
 
-  &__icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.04);
-    color: #e5e7eb;
-    cursor: pointer;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.08);
-    }
-  }
-
   &__select-label {
     display: flex;
     flex-direction: column;
@@ -1002,26 +961,6 @@ onUnmounted(() => {
     margin-top: auto;
     padding-top: 8px;
     flex-shrink: 0;
-  }
-
-  &__btn {
-    width: 100%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-
-    &--exit {
-      background: rgba(255, 255, 255, 0.08);
-      color: #e5e7eb;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-    }
   }
 }
 

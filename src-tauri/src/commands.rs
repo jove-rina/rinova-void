@@ -46,6 +46,11 @@ pub fn init_window(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn reset_window(app: tauri::AppHandle) -> Result<(), String> {
+    window::reset_main_window(&app)
+}
+
+#[tauri::command]
 pub fn list_picker_monitors(app: AppHandle) -> Result<Vec<MonitorInfo>, String> {
     color_picker::list_monitors(&app)
 }

@@ -93,6 +93,7 @@ pub fn run() {
             commands::check_port,
             commands::reclaim_port,
             commands::init_window,
+            commands::reset_window,
             commands::list_picker_monitors,
             commands::prepare_picker_launch,
             commands::take_picker_launch,
